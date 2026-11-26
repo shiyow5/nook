@@ -114,6 +114,7 @@ function bootstrapViewer() {
     github_trending: "GitHub",
     reddit_explorer: "Reddit",
     paper_summarizer: "Papers",
+    arxiv_news: "arXiv",
     google_alerts: "Alerts",
   };
 

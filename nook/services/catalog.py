@@ -74,6 +74,12 @@ SERVICE_DEFINITIONS: tuple[ServiceDefinition, ...] = (
         schedule=(0, 54),
         description="Japanese tech news collector",
     ),
+    ServiceDefinition(
+        name="arxiv_news",
+        kind="collector",
+        schedule=(1, 0),
+        description="arXiv RSS collector",
+    ),
 )
 
 _SERVICE_INDEX = {definition.name: definition for definition in SERVICE_DEFINITIONS}

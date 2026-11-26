@@ -1,0 +1,74 @@
+# arXiv の新着 RSS(viewer の「arXiv」タブ)。書式は configs/tech_news/feed.toml と同じ。
+# 3 カテゴリで 1 日あわせて数百本あるため、keywords に一致した論文だけを各 feed 最大 10 本要約する。
+# 改訂(replace)は除き、新着(new)と他分野からのクロスリスト(cross)だけを扱う。
+# Hugging Face Daily Papers(Papers タブ)で直近 7 日に要約した論文は重複させない。
+# "LLM" や "reasoning" は 1 日 100 本以上に一致して絞り込みにならないので入れていない。
+
+[[feeds]]
+name = "arxiv-cs-cl"
+url = "https://rss.arxiv.org/rss/cs.CL"
+feed_name_display = "arXiv cs.CL"
+keywords = [
+    "KV cache",
+    "KV-cache",
+    "key-value cache",
+    "long-context",
+    "long context",
+    "context length",
+    "speculative decoding",
+    "Monte Carlo tree search",
+    "MCTS",
+    "test-time scaling",
+    "test-time compute",
+    "sparse attention",
+    "linear attention",
+    "reinforcement learning from",
+    "RLVR",
+    "GRPO",
+]
+
+[[feeds]]
+name = "arxiv-cs-lg"
+url = "https://rss.arxiv.org/rss/cs.LG"
+feed_name_display = "arXiv cs.LG"
+keywords = [
+    "KV cache",
+    "KV-cache",
+    "key-value cache",
+    "long-context",
+    "long context",
+    "context length",
+    "speculative decoding",
+    "Monte Carlo tree search",
+    "MCTS",
+    "test-time scaling",
+    "test-time compute",
+    "sparse attention",
+    "linear attention",
+    "reinforcement learning from",
+    "RLVR",
+    "GRPO",
+]
+
+[[feeds]]
+name = "arxiv-cs-ai"
+url = "https://rss.arxiv.org/rss/cs.AI"
+feed_name_display = "arXiv cs.AI"
+keywords = [
+    "KV cache",
+    "KV-cache",
+    "key-value cache",
+    "long-context",
+    "long context",
+    "context length",
+    "speculative decoding",
+    "Monte Carlo tree search",
+    "MCTS",
+    "test-time scaling",
+    "test-time compute",
+    "sparse attention",
+    "linear attention",
+    "reinforcement learning from",
+    "RLVR",
+    "GRPO",
+]

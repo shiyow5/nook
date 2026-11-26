@@ -76,7 +76,7 @@ class TechNews:
 
     def __call__(self) -> None:
         markdowns = []
-        processed_urls = set()
+        processed_urls = self._initially_processed_urls()
         for feed_config in self._feeds:
             print(f"Processing feed: {feed_config.name} ({feed_config.url})")
             feed_parser: feedparser.FeedParserDict = feedparser.parse(
@@ -126,6 +126,10 @@ class TechNews:
                     traceback.print_exc()
 
         self._store_summaries(markdowns)
+
+    def _initially_processed_urls(self) -> set[str]:
+        """実行開始時点で処理済みとみなす URL。subclass が他の collector との重複除外に使う。"""
+        return set()
 
     def _filter_entries(
         self,

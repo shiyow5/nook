@@ -19,7 +19,7 @@
     // Python 側(GitHub Actions)と同じ provider:model 形式。Worker は google-gla のみ対応。
     "LLM_MODEL": "google-gla:gemini-flash-lite-latest",
     // タブに出す collector。カンマ区切りで、この順に並べる。
-    "VIEWER_SERVICES": "tech_news,jp_tech_news,tech_feed,hacker_news,product_hunt,github_trending,paper_summarizer,reddit_explorer",
+    "VIEWER_SERVICES": "tech_news,jp_tech_news,tech_feed,hacker_news,product_hunt,github_trending,paper_summarizer,arxiv_news,reddit_explorer",
     "GITHUB_REPOSITORY": "shiyow5/nook",
     "GITHUB_WORKFLOW": "collect.yml",
     "GITHUB_REF": "main",

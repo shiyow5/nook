@@ -63,7 +63,7 @@ gh secret set R2_ENDPOINT_URL
 gh variable set R2_BUCKET --body nook-data
 gh variable set LLM_MODEL --body google-gla:gemini-flash-lite-latest
 gh variable set NOOK_ENABLED_COLLECTORS \
-  --body hacker_news,paper_summarizer,reddit_explorer,tech_feed,github_trending,tech_news,jp_tech_news
+  --body hacker_news,paper_summarizer,arxiv_news,reddit_explorer,tech_feed,github_trending,tech_news,jp_tech_news
 ```
 
 `NOOK_ENABLED_COLLECTORS` は毎日の cron で実行する collector です。

@@ -32,6 +32,7 @@ TAB_LABELS = {
     "github_trending": "GitHub",
     "reddit_explorer": "Reddit",
     "paper_summarizer": "Papers",
+    "arxiv_news": "arXiv",
     "google_alerts": "Alerts",
 }
 VIEWER_TAB_PRIORITY = (
@@ -42,6 +43,7 @@ VIEWER_TAB_PRIORITY = (
     "product_hunt",
     "github_trending",
     "paper_summarizer",
+    "arxiv_news",
     "google_alerts",
 )
 

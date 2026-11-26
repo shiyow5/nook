@@ -21,6 +21,7 @@ export const COLLECTOR_NAMES: ReadonlySet<string> = new Set([
   "google_alerts",
   "tech_news",
   "jp_tech_news",
+  "arxiv_news",
 ]);
 
 const TAB_LABELS: Record<string, string> = {
@@ -32,6 +33,7 @@ const TAB_LABELS: Record<string, string> = {
   github_trending: "GitHub",
   reddit_explorer: "Reddit",
   paper_summarizer: "Papers",
+  arxiv_news: "arXiv",
   google_alerts: "Alerts",
 };
 

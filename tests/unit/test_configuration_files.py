@@ -34,6 +34,11 @@ CONFIG_CASES = [
         "feeds",
         {"name", "url", "feed_name_display"},
     ),
+    (
+        Path("configs/arxiv_news/feed.toml"),
+        "feeds",
+        {"name", "url", "feed_name_display"},
+    ),
 ]
 
 

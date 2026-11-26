@@ -25,6 +25,7 @@
 | ProductHunt | `product_hunt` | Product Hunt の当日の上位製品(API の鍵を登録すると有効、[#8](https://github.com/shiyow5/nook/issues/8)) |
 | GitHub | `github_trending` | GitHub Trending(Python) |
 | Papers | `paper_summarizer` | Hugging Face Daily Papers(本文を読んで要約し、論文タイトルの日本語訳も付ける) |
+| arXiv | `arxiv_news` | arXiv の cs.CL / cs.LG / cs.AI の新着から、KV キャッシュ・長文脈・推測的デコーディング・MCTS・強化学習などの語に一致した論文(各カテゴリ最大 10 本、Papers タブと重複しない) |
 | Reddit | `reddit_explorer` | r/LocalLLaMA |
 
 RSS 系のタブは `configs/<collector>/feed.toml` で情報源を増減でき、`keywords` を書くとタイトルや本文に一致した記事だけを残します。日本語を含む URL はパーセントエンコードして書いてください。
@@ -78,7 +79,7 @@ npm run deploy          # viewer を Cloudflare にデプロイ
 
 このリポジトリは Issue 駆動で進めています。不具合、要望、実装予定はすべて [Issues](https://github.com/shiyow5/nook/issues) に登録し、Issue ごとにブランチと Pull Request を作って閉じていきます。
 
-いま予定している主な作業は、arXiv(cs.CL / cs.LG / cs.AI)のキーワード収集、画面の刷新(日付のカレンダー選択、目次、デザイン)、画面からキーワードや収集対象を変える設定画面、Gemini の費用削減の検討([#1](https://github.com/shiyow5/nook/issues/1))です。その先に、お気に入り、用語辞書、AI による要約の添削やケーススタディといった学習支援の機能を [#23](https://github.com/shiyow5/nook/issues/23) で計画しています。
+いま予定している主な作業は、画面の刷新(日付のカレンダー選択、目次、デザイン、スマホ向けの最適化)、画面からキーワードや収集対象を変える設定画面、Gemini の費用削減の検討([#1](https://github.com/shiyow5/nook/issues/1))です。その先に、お気に入り、用語辞書、AI による要約の添削やケーススタディといった学習支援の機能を [#23](https://github.com/shiyow5/nook/issues/23) で計画しています。
 
 ## ライセンスとクレジット
 

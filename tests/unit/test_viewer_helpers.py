@@ -88,6 +88,7 @@ def test_load_viewer_page_builds_contents_and_existence_map() -> None:
         "product_hunt",
         "github_trending",
         "paper_summarizer",
+        "arxiv_news",
         "google_alerts",
         "reddit_explorer",
     ]
@@ -150,6 +151,7 @@ def test_viewer_service_names_uses_priority_order_and_appends_unspecified_servic
         "product_hunt",
         "github_trending",
         "paper_summarizer",
+        "arxiv_news",
         "google_alerts",
         "reddit_explorer",
     ]
