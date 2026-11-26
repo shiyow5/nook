@@ -46,6 +46,8 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
   - `google-gla` / `google-vertex` では thread / Lambda runtime での event loop conflict を避けるため、呼び出しごとに dedicated `httpx.AsyncClient` と concrete Google model を組み立て、実行後に close する。
   - 既に running event loop がある call site では `Agent.run_sync()` を直接叩かず、worker thread へ退避して同期 API を維持する。
   - text output、structured output、viewer chat 用 prompt を共通化する。viewer chat search は provider が対応している場合のみ built-in `WebSearchTool` を使う。
+- `nook/services/llm_response_cache.py`
+  - `NOOK_LLM_RESPONSE_CACHE=enabled` のとき、`generate_content` / `generate_structured_content` の応答を「モデル名・種別・入力・指示・生成設定」の SHA-256 をキーに `_state/llm_cache/<hash>.json` へ保存し、同じ入力の 2 回目以降は LLM を呼ばずに返す。LLM が返した結果だけを保存し、例外は保存しない。viewer のチャット(`chat_with_search`)は対象外。
 - `nook/services/viewer/app.py`
   - storage / job invoker 注入型の FastAPI app factory を提供し、初期表示用の server-render context も template へ渡す。chat request では `app_name + date + article_id` から対象 article instance を再解決する。
 - `nook/services/viewer/content.py`

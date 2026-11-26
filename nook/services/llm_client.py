@@ -15,6 +15,7 @@ from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.settings import ModelSettings
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
+from nook.services.llm_response_cache import LlmResponseCache, build_response_cache
 from nook.services.runtime_secrets import export_runtime_secrets_to_env
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ class LlmClient:
         env: Mapping[str, str | None] | None = None,
         secrets_client: object | None = None,
         cache: object | None = None,
+        response_cache: LlmResponseCache | None = None,
     ) -> None:
         export_runtime_secrets_to_env(
             target_env=os.environ,
@@ -103,6 +105,7 @@ class LlmClient:
             cache=cache,
         )
         self._config = config
+        self._response_cache = response_cache
 
     @retry(
         stop=stop_after_attempt(7),
@@ -119,6 +122,18 @@ class LlmClient:
         top_p: float | None = None,
         max_output_tokens: int | None = None,
     ) -> str:
+        cache_key = self._response_cache_key(
+            kind="text",
+            contents=contents,
+            instructions=system_instruction,
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+        )
+        cached = self._read_cached_response(cache_key)
+        if isinstance(cached, str):
+            return cached
         try:
             output = self._run_agent(
                 contents=contents,
@@ -131,10 +146,11 @@ class LlmClient:
             )
             if not isinstance(output, str) or not output:
                 raise ValueError("LLM response did not contain text")
-            return output
         except Exception:
             logger.exception("llm text generation failed")
             raise
+        self._write_cached_response(cache_key, model=model, output=output)
+        return output
 
     @retry(
         stop=stop_after_attempt(7),
@@ -152,6 +168,18 @@ class LlmClient:
         top_p: float | None = None,
         max_output_tokens: int | None = None,
     ) -> StructuredResponseT:
+        cache_key = self._response_cache_key(
+            kind=f"structured:{response_schema.__module__}.{response_schema.__qualname__}",
+            contents=contents,
+            instructions=system_instruction,
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
+            max_output_tokens=max_output_tokens,
+        )
+        cached = self._read_cached_response(cache_key)
+        if cached is not None:
+            return response_schema.model_validate(cached)
         try:
             output = self._run_agent(
                 contents=contents,
@@ -162,10 +190,60 @@ class LlmClient:
                 top_p=top_p,
                 max_output_tokens=max_output_tokens,
             )
-            return response_schema.model_validate(output)
+            validated = response_schema.model_validate(output)
         except Exception:
             logger.exception("llm structured generation failed")
             raise
+        self._write_cached_response(
+            cache_key, model=model, output=validated.model_dump(mode="json")
+        )
+        return validated
+
+    def _response_cache_key(
+        self,
+        *,
+        kind: str,
+        contents: str | list[str],
+        instructions: str | None,
+        model: str | None,
+        temperature: float | None,
+        top_p: float | None,
+        max_output_tokens: int | None,
+    ) -> str | None:
+        if self._response_cache is None:
+            return None
+        return self._response_cache.key_for(
+            model=model or self._config.model,
+            kind=kind,
+            contents=contents,
+            instructions=instructions,
+            settings={
+                "temperature": self._config.temperature
+                if temperature is None
+                else temperature,
+                "top_p": self._config.top_p if top_p is None else top_p,
+                "max_output_tokens": self._config.max_output_tokens
+                if max_output_tokens is None
+                else max_output_tokens,
+            },
+        )
+
+    def _read_cached_response(self, cache_key: str | None) -> Any | None:
+        if self._response_cache is None or cache_key is None:
+            return None
+        cached = self._response_cache.get(cache_key)
+        if cached is not None:
+            logger.info("llm response cache hit: %s", cache_key)
+        return cached
+
+    def _write_cached_response(
+        self, cache_key: str | None, *, model: str | None, output: Any
+    ) -> None:
+        if self._response_cache is None or cache_key is None:
+            return
+        self._response_cache.put(
+            cache_key, model=model or self._config.model, output=output
+        )
 
     @retry(
         stop=stop_after_attempt(7),
@@ -428,6 +506,10 @@ def create_client(config: dict[str, Any] | None = None, **kwargs) -> LlmClient:
     env = kwargs.pop("env", None)
     secrets_client = kwargs.pop("secrets_client", None)
     cache = kwargs.pop("cache", None)
+    if "response_cache" in kwargs:
+        response_cache = kwargs.pop("response_cache")
+    else:
+        response_cache = build_response_cache(env if env is not None else os.environ)
     env_model = resolve_llm_model(env=env)
     explicit_model = kwargs.pop("model", None)
 
@@ -451,6 +533,7 @@ def create_client(config: dict[str, Any] | None = None, **kwargs) -> LlmClient:
         env=env,
         secrets_client=secrets_client,
         cache=cache,
+        response_cache=response_cache,
     )
 
 
