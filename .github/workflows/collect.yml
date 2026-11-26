@@ -55,6 +55,8 @@ jobs:
           AWS_REQUEST_CHECKSUM_CALCULATION: when_required
           AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
           LLM_MODEL: ${{ vars.LLM_MODEL }}
+          # 同じ入力の要約は R2 の _state/llm_cache/ から再利用し、LLM を呼ばない(#2)
+          NOOK_LLM_RESPONSE_CACHE: enabled
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}

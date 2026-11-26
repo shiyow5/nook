@@ -6,6 +6,7 @@ nook は、日々公開される技術ニュース、論文、OSS、プロダク
 
 - Hacker News、Product Hunt、GitHub Trending、Reddit、RSS、Google Alerts、論文情報をまとめて収集する
 - 各記事や論文を日本語で要約する
+- 一度要約した記事は保存した要約を使い回し、LLM を呼び直さない(`NOOK_LLM_RESPONSE_CACHE=enabled` のとき)
 - 日付ごとに情報を整理して Web で読む
 - 各記事に対して追加の質問を送る
 - ローカル環境と AWS のどちらでも同じ構成で動かす
