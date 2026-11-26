@@ -107,6 +107,7 @@ function bootstrapViewer() {
   const initialState = JSON.parse(stateNode.textContent);
   const tabLabels = {
     tech_news: "News",
+    jp_tech_news: "国内",
     tech_feed: "Feeds",
     product_hunt: "ProductHunt",
     hacker_news: "HN",
@@ -352,6 +353,9 @@ function bootstrapViewer() {
   }
 
   function renderWeather() {
+    if (!elements.weather) {
+      return;
+    }
     const temp = runtime.weather.temp || "--";
     const icon = runtime.weather.weather_icon || "";
     elements.weather.textContent = icon ? `${temp}°C ${icon}` : `${temp}°C`;
@@ -384,6 +388,9 @@ function bootstrapViewer() {
   }
 
   async function refreshWeather() {
+    if (!elements.weather) {
+      return;
+    }
     try {
       const response = await fetch("/api/weather");
       if (!response.ok) {

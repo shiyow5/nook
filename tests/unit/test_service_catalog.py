@@ -16,6 +16,7 @@ def test_service_catalog_contains_all_collectors_and_viewer() -> None:
         "viewer",
         "google_alerts",
         "tech_news",
+        "jp_tech_news",
     ]
     assert definitions["viewer"].kind == "web"
 
@@ -33,6 +34,7 @@ def test_service_catalog_contains_all_collectors_and_viewer() -> None:
         "product_hunt",
         "google_alerts",
         "tech_news",
+        "jp_tech_news",
     ]
 
 

@@ -313,6 +313,7 @@ class PaperSummarizer:
             """
             以下の structured output schema に従って、各 field を日本語で埋めてください。
 
+            - `title_ja`: 論文タイトルの自然な日本語訳。固有の手法名やモデル名は原語のまま残す
             - `approach`: どのようなアプローチで課題を解決しようとしたか
             - `results`: 結果として何が達成できたのか
             - `limitations`: limitation や問題点。本文で言及されたものに加えて、本文から自然に推測できるものも含めてよい

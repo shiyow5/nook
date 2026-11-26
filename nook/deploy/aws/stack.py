@@ -46,6 +46,7 @@ class NookNames:
     viewer: str = "viewer"
     google_alerts: str = "google_alerts"
     tech_news: str = "tech_news"
+    jp_tech_news: str = "jp_tech_news"
 
 
 class NookStack(Stack):

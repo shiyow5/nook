@@ -29,6 +29,11 @@ CONFIG_CASES = [
         "feeds",
         {"name", "url", "feed_name_display"},
     ),
+    (
+        Path("configs/jp_tech_news/feed.toml"),
+        "feeds",
+        {"name", "url", "feed_name_display"},
+    ),
 ]
 
 

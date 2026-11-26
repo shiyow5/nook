@@ -78,10 +78,20 @@ class FilesystemStorageBackend:
 @dataclass(slots=True)
 class S3StorageBackend:
     bucket_name: str
+    endpoint_url: str | None = None
+    region_name: str | None = None
     _client: Any = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self._client = boto3.client("s3")
+        client_options = {
+            key: value
+            for key, value in (
+                ("endpoint_url", self.endpoint_url),
+                ("region_name", self.region_name),
+            )
+            if value
+        }
+        self._client = boto3.client("s3", **client_options)
 
     def read_markdown_record(
         self,
@@ -162,6 +172,15 @@ def build_storage_backend(env: Mapping[str, str | None]) -> StorageBackend:
         bucket_name = env.get("BUCKET_NAME")
         if not bucket_name:
             raise ValueError("BUCKET_NAME is required for s3 storage backend")
-        return S3StorageBackend(bucket_name=bucket_name)
+        endpoint_url = env.get("NOOK_S3_ENDPOINT_URL")
+        if endpoint_url is not None and not endpoint_url.strip():
+            # GitHub Actions で secret が未登録だと空文字になる。そのまま AWS S3 に
+            # R2 の鍵を送らないよう、明示的に失敗させる。
+            raise ValueError("NOOK_S3_ENDPOINT_URL is set but empty")
+        return S3StorageBackend(
+            bucket_name=bucket_name,
+            endpoint_url=endpoint_url,
+            region_name=env.get("NOOK_S3_REGION"),
+        )
 
     raise ValueError(f"Unsupported storage backend: {backend_name}")

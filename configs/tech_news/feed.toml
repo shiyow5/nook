@@ -16,3 +16,37 @@ keywords = [
     "funding",
     "machine learning",
 ]
+
+# 海外の AI 企業・研究ブログ
+[[feeds]]
+name = "openai-news"
+url = "https://openai.com/news/rss.xml"
+feed_name_display = "OpenAI News"
+
+[[feeds]]
+name = "aws-machine-learning"
+url = "https://aws.amazon.com/blogs/machine-learning/feed/"
+feed_name_display = "AWS Machine Learning Blog"
+
+# 国内のビジネス・IT ニュース(umiyuki/nook-local の business_feed を移植)
+[[feeds]]
+name = "nikkei-business"
+url = "https://business.nikkei.com/rss/sns/nb.rdf"
+feed_name_display = "日経ビジネス"
+keywords = ["AI", "生成AI", "半導体", "データセンター", "DX", "スタートアップ"]
+
+[[feeds]]
+name = "business-insider-japan"
+url = "https://www.businessinsider.jp/feed/index.xml"
+feed_name_display = "Business Insider Japan"
+keywords = ["AI", "生成AI", "OpenAI", "Google", "半導体", "スタートアップ"]
+
+[[feeds]]
+name = "nikkei-xtech-it"
+url = "https://xtech.nikkei.com/rss/xtech-it.rdf"
+feed_name_display = "日経クロステック IT"
+
+[[feeds]]
+name = "itmedia-aiplus"
+url = "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml"
+feed_name_display = "ITmedia AI+"

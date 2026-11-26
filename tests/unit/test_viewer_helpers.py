@@ -82,6 +82,7 @@ def test_load_viewer_page_builds_contents_and_existence_map() -> None:
     assert "tech_feed" in page.app_names
     assert page.app_names == [
         "tech_news",
+        "jp_tech_news",
         "tech_feed",
         "hacker_news",
         "product_hunt",
@@ -143,6 +144,7 @@ def test_viewer_service_names_uses_priority_order_and_appends_unspecified_servic
 
     assert viewer_service_names() == [
         "tech_news",
+        "jp_tech_news",
         "tech_feed",
         "hacker_news",
         "product_hunt",

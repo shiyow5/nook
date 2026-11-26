@@ -113,6 +113,10 @@ make cdk-deploy
 
 このコマンドは `.env` と現在の環境変数を読み込み、`NOOK_AWS_SECRET_ID` で指定した Secrets Manager secret に必要な認証情報を反映したうえで CDK deploy を実行します。完了後に viewer の Function URL が表示されます。
 
+## Cloudflare で動かす
+
+AWS を使わずに、collector を GitHub Actions、viewer を Cloudflare Workers、保存先を R2 にする構成も用意しています。手順は [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) を参照してください。
+
 ## 設定ファイル
 
 このリポジトリに含まれている `configs/*.toml` はサンプルです。公開版に同梱されている内容をそのまま使うのではなく、自分の監視対象に合わせて編集してください。
@@ -128,6 +132,8 @@ make cdk-deploy
   - 各 feed は `name`、`url`、`feed_name_display` を持ち、`keywords` は任意です。
   - `keywords` を指定した場合は title、summary、content に一致した記事だけを残します。
   - 同じ URL は 1 件にまとめ、各 feed からは 1 日あたり最大 10 件まで処理します。
+- `configs/jp_tech_news/feed.toml`
+  - viewer の「国内」タブに出す Zenn / Qiita / note / はてなブックマーク / DevelopersIO の RSS を定義します。書式は `tech_news` と同じです。
 - `configs/google_alerts/google_alerts.toml`
   - Google Alerts の RSS を定義します。
   - 同梱している URL はサンプルなので、実際に使う前に自分の RSS URL に置き換えてください。
@@ -140,6 +146,10 @@ make cdk-deploy
   - CDK、Lambda handler、AWS 向けの deploy 処理です。
 - `nook/deploy/local/`
   - ローカル実行と service 登録まわりです。
+- `nook/deploy/github/`
+  - GitHub Actions から collector をまとめて実行する入口です。
+- `nook/deploy/cloudflare/viewer/`
+  - Cloudflare Workers 版の viewer(TypeScript)です。
 - `configs/`
   - 各 collector が参照するサンプル設定ファイルです。
 - `docs/DESIGN.md`

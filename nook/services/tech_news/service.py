@@ -41,12 +41,12 @@ class Config:
     max_chars = 25000
 
     @classmethod
-    def load_feeds(cls) -> list[FeedConfig]:
-        feed_data = load_service_toml("tech_news", "feed.toml")
+    def load_feeds(cls, service_name: str = "tech_news") -> list[FeedConfig]:
+        feed_data = load_service_toml(service_name, "feed.toml")
         feeds = [FeedConfig.model_validate(feed) for feed in feed_data.get("feeds", [])]
         if not feeds:
             raise ValueError(
-                "configs/tech_news/feed.toml must define at least one feed"
+                f"configs/{service_name}/feed.toml must define at least one feed"
             )
         return feeds
 
@@ -63,14 +63,16 @@ class Article:
 
 
 class TechNews:
+    SERVICE_NAME = "tech_news"
+
     def __init__(self) -> None:
         self._client = create_client()
         self._storage = CollectorStorage(
-            service_name="tech_news",
+            service_name=self.SERVICE_NAME,
             backend=build_storage_backend(os.environ),
         )
         self._threshold = datetime.now() - timedelta(days=Config.threshold_days)
-        self._feeds = Config.load_feeds()
+        self._feeds = Config.load_feeds(self.SERVICE_NAME)
 
     def __call__(self) -> None:
         markdowns = []

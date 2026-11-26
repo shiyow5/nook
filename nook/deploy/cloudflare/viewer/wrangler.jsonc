@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nook-viewer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  // viewer.js / viewer.css は Python 版と同じファイルを配信する。
+  // run_worker_first により静的ファイルも Access JWT の検証を通す。
+  "assets": {
+    "directory": "../../../services/viewer/static",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "r2_buckets": [{ "binding": "NOOK_BUCKET", "bucket_name": "nook-data" }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "vars": {
+    // Python 側(GitHub Actions)と同じ provider:model 形式。Worker は google-gla のみ対応。
+    "LLM_MODEL": "google-gla:gemini-flash-lite-latest",
+    // タブに出す collector。カンマ区切りで、この順に並べる。
+    "VIEWER_SERVICES": "tech_news,jp_tech_news,tech_feed,hacker_news,product_hunt,github_trending,paper_summarizer,reddit_explorer",
+    "GITHUB_REPOSITORY": "shiyow5/nook",
+    "GITHUB_WORKFLOW": "collect.yml",
+    "GITHUB_REF": "main",
+    // Zero Trust のチーム名(<team>.cloudflareaccess.com の <team>)と Access アプリの AUD。
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  }
+  // secrets(wrangler secret put で登録): GOOGLE_API_KEY, GITHUB_TOKEN
+}

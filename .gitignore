@@ -18,7 +18,14 @@ cdk.out/
 
 node_modules/
 
+# Cloudflare Workers(wrangler)のローカル状態と開発用 secrets
+.wrangler/
+.dev.vars
+
 .env
 .envrc
 
 .DS_Store
+
+# viewer Worker は npm ci で入れるため lock を管理する
+!nook/deploy/cloudflare/viewer/package-lock.json

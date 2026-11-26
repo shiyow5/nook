@@ -25,6 +25,7 @@ MEMORY_SIZES = {
     "tech_feed": 512,
     "google_alerts": 512,
     "tech_news": 512,
+    "jp_tech_news": 512,
     "viewer": 512,
 }
 TIMEOUT_SECONDS = {

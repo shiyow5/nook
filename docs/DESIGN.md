@@ -6,6 +6,13 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
 
 ## 実行モード
 
+- Cloudflare(詳細は `docs/CLOUDFLARE.md`):
+  - collector は `.github/workflows/collect.yml` が毎日 06:00 JST と workflow_dispatch で実行する。`nook/deploy/github/run_collectors.py` がカンマ区切りの collector を順に実行し、失敗があっても残りを実行してから非 0 で終了する。
+  - 保存先は `S3StorageBackend` を `NOOK_S3_ENDPOINT_URL` / `NOOK_S3_REGION` で R2 に向けたもの。runner は `TZ=Asia/Tokyo` で動かし、日付を JST に揃える。
+  - viewer は `nook/deploy/cloudflare/viewer/` の TypeScript Worker。R2 binding から Markdown と state を読み書きし、`viewer.js` / `viewer.css` は Workers static assets として `/static/*` で配信する。API の形は Python 版と同じで、天気 API は持たない。
+  - chat は Gemini generateContent を `google_search` tool 付きで呼ぶ。retry は GitHub の workflow_dispatch を `collectors=<service>` で呼ぶ。
+  - Worker は全リクエストで Cloudflare Access の JWT(`Cf-Access-Jwt-Assertion`)を検証し、`ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` が未設定なら拒否する。
+
 - AWS:
   - `nook/deploy/aws/stack.py` が Lambda 群、viewer Function URL、日次 EventBridge を定義する。
   - `nook/deploy/aws/cli.py` は repo root の `.env` と process env を merge し、その env で Secrets Manager secret bootstrap と CDK 実行を行う。
@@ -56,6 +63,10 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
   - `paper_summarizer` は論文本文が大きいため、他 collector より長い LLM request timeout を使う。
   - `paper_summarizer` は Hugging Face papers API の `upvotes` を使って新着 paper を降順に並べ、既読 ID を除いた順で処理する。
   - `reddit_explorer` は設定された subreddit 群から集めた post を一度集約し、`upvotes` 降順で markdown 化する。
+- `nook/services/jp_tech_news/service.py`
+  - `TechNews` の `SERVICE_NAME` だけを `jp_tech_news` に変えた subclass。設定は `configs/jp_tech_news/feed.toml` から読み、viewer の「国内」タブに出る。
+- `nook/services/paper_summarizer/summary_schema.py`
+  - structured output の `title_ja`(論文タイトルの日本語訳)を見出しの次の段落に「（訳）」として併記する。空か原題と同じなら出さない。
 - `nook/services/registry.py`
   - service 名から collector runner / class を解決する。
 - `nook/deploy/aws/handlers/`

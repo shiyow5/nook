@@ -1,0 +1,77 @@
+# 国内の技術記事を集める feed 一覧(viewer の「国内」タブ)。
+# 書式は configs/tech_news/feed.toml と同じ。`keywords` は任意で、指定すると
+# title / summary / content に一致した記事だけを残す。
+# 日本語を含む URL はパーセントエンコードして書く(そのままだと Zenn が 400 を返す)。
+# 各 feed から 1 日あたり最大 10 件、同じ URL は 1 件にまとめる。
+
+[[feeds]]
+name = "zenn-trending"
+url = "https://zenn.dev/feed"
+feed_name_display = "Zenn Trending"
+
+[[feeds]]
+name = "zenn-llm"
+url = "https://zenn.dev/topics/llm/feed"
+feed_name_display = "Zenn LLM"
+
+[[feeds]]
+name = "zenn-machine-learning"
+url = "https://zenn.dev/topics/machinelearning/feed"
+feed_name_display = "Zenn Machine Learning"
+keywords = [
+    "Transformer",
+    "LLM",
+    "KV Cache",
+    "KVキャッシュ",
+    "強化学習",
+    "推論",
+    "長文脈",
+    "Attention",
+    "MCTS",
+]
+
+[[feeds]]
+name = "qiita-trending"
+url = "https://qiita.com/popular-items/feed"
+feed_name_display = "Qiita Trending"
+
+[[feeds]]
+name = "qiita-llm"
+url = "https://qiita.com/tags/llm/feed"
+feed_name_display = "Qiita LLM"
+
+[[feeds]]
+name = "qiita-machine-learning"
+# 機械学習
+url = "https://qiita.com/tags/%E6%A9%9F%E6%A2%B0%E5%AD%A6%E7%BF%92/feed"
+feed_name_display = "Qiita 機械学習"
+
+[[feeds]]
+name = "note-generative-ai"
+# 生成AI
+url = "https://note.com/hashtag/%E7%94%9F%E6%88%90AI/rss"
+feed_name_display = "note 生成AI"
+
+[[feeds]]
+name = "note-llm"
+url = "https://note.com/hashtag/LLM/rss"
+feed_name_display = "note LLM"
+
+[[feeds]]
+name = "hatena-it"
+url = "https://b.hatena.ne.jp/hotentry/it.rss"
+feed_name_display = "はてなブックマーク IT"
+
+[[feeds]]
+name = "developersio"
+url = "https://dev.classmethod.jp/feed/"
+feed_name_display = "DevelopersIO"
+keywords = [
+    "LLM",
+    "生成AI",
+    "機械学習",
+    "Bedrock",
+    "Claude",
+    "Gemini",
+    "Cloudflare",
+]

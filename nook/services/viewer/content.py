@@ -25,6 +25,7 @@ from nook.services.viewer.models import (
 
 TAB_LABELS = {
     "tech_news": "News",
+    "jp_tech_news": "国内",
     "tech_feed": "Feeds",
     "product_hunt": "ProductHunt",
     "hacker_news": "HN",
@@ -35,6 +36,7 @@ TAB_LABELS = {
 }
 VIEWER_TAB_PRIORITY = (
     "tech_news",
+    "jp_tech_news",
     "tech_feed",
     "hacker_news",
     "product_hunt",

@@ -1,0 +1,1 @@
+"""Japanese tech news microservice."""

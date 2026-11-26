@@ -10,6 +10,7 @@ class PaperReference(BaseModel):
 
 
 class PaperSummarySections(BaseModel):
+    title_ja: str = ""
     approach: list[str] = Field(default_factory=list)
     results: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
@@ -25,6 +26,7 @@ def render_paper_summary_markdown(
     return "\n\n".join(
         [
             f"# {title}",
+            *_render_japanese_title(title=title, title_ja=summary.title_ja),
             f"[View Paper]({url})",
             "### 1. どのようなアプローチで課題を解決しようとしたか",
             _render_bullet_list(
@@ -45,6 +47,13 @@ def render_paper_summary_markdown(
             _render_references(summary.references),
         ]
     )
+
+
+def _render_japanese_title(*, title: str, title_ja: str) -> list[str]:
+    normalized_title_ja = title_ja.strip()
+    if not normalized_title_ja or normalized_title_ja == title.strip():
+        return []
+    return [f"（{normalized_title_ja}）"]
 
 
 def _render_bullet_list(items: list[str], *, empty_message: str) -> str:
