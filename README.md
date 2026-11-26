@@ -1,180 +1,85 @@
-# nook
+# nook(Cloudflare 版)
 
-nook は、日々公開される技術ニュース、論文、OSS、プロダクト情報を収集して日本語で要約し、Web でまとめて読めるようにするアプリです。ローカル環境でも AWS でも動かせます。
+技術ニュース、国内の技術記事、論文、OSS の動向を毎朝集めて日本語で要約し、ブラウザで読めるようにする個人用アプリです。記事ごとに AI へ質問もできます。今後は、読んだ内容を自分の知識として定着させる学習支援の機能を足していく予定です([#23](https://github.com/shiyow5/nook/issues/23))。
+
+[discus0434/nook](https://github.com/discus0434/nook) をもとに、AWS を使わず GitHub Actions と Cloudflare の無料枠で動く構成に作り替えています。本家の更新は `upstream` リモートから取り込めます。
+
+![nook の画面](assets/screenshots/cloudflare-viewer.png)
 
 ## できること
 
-- Hacker News、Product Hunt、GitHub Trending、Reddit、RSS、Google Alerts、論文情報をまとめて収集する
-- 各記事や論文を日本語で要約する
-- 一度要約した記事は保存した要約を使い回し、LLM を呼び直さない(`NOOK_LLM_RESPONSE_CACHE=enabled` のとき)
-- 日付ごとに情報を整理して Web で読む
-- 各記事に対して追加の質問を送る
-- ローカル環境と AWS のどちらでも同じ構成で動かす
+毎朝 6 時(日本時間)に GitHub Actions が収集を実行し、記事を Gemini で日本語に要約して Cloudflare R2 に保存します。画面は Cloudflare Workers が R2 から読み出して表示し、Cloudflare Access で本人だけが開けるようにしています。
 
-対応している主な情報源は次のとおりです。
+画面では日付とタブを切り替えて記事を読み、記事ごとの欄から AI に質問できます。AI は Google 検索で事実を確かめながら答えます。「Retry Now」を押すと、そのタブの収集を GitHub Actions で 1 件だけやり直します。
 
-- Hacker News
-- Product Hunt
-- GitHub Trending
-- Reddit
-- 技術ブログなどの RSS
-- Google Alerts の RSS
-- Hugging Face Daily Papers 経由の論文情報
-- `configs/tech_news/feed.toml` に定義した任意の RSS 一覧
+一度要約した記事やリポジトリは、要約を R2 に保存して使い回します。何日もランキングに残る記事を毎日要約し直さないので、LLM の費用を抑えられます。保存したデータは 90 日たつと自動で消えます。
 
-`tech_news` は複数の RSS を横断して集約でき、feed ごとに任意の `keywords` フィルタを付けられます。
+## タブと情報源
 
-## 前提環境
+| タブ | collector | 情報源 |
+|---|---|---|
+| News | `tech_news` | 海外の AI・テック系メディア、OpenAI / AWS のブログ、日経ビジネス・Business Insider Japan・日経クロステック・ITmedia AI+ |
+| 国内 | `jp_tech_news` | Zenn(トレンド、LLM、機械学習)、Qiita(人気記事、LLM、機械学習)、note(生成AI、LLM)、はてなブックマーク IT、DevelopersIO |
+| Feeds | `tech_feed` | Hugging Face、Google Research、DeepMind のブログ |
+| HN | `hacker_news` | Hacker News の上位 30 件 |
+| ProductHunt | `product_hunt` | Product Hunt の当日の上位製品(API の鍵を登録すると有効、[#8](https://github.com/shiyow5/nook/issues/8)) |
+| GitHub | `github_trending` | GitHub Trending(Python) |
+| Papers | `paper_summarizer` | Hugging Face Daily Papers(本文を読んで要約し、論文タイトルの日本語訳も付ける) |
+| Reddit | `reddit_explorer` | r/LocalLLaMA |
 
-- Python 3.11
-- `uv`
-- 利用する LLM の API キー
-  - 例: `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`
-- Reddit API の認証情報
-- Product Hunt API Key と Developer Token
-- Google Alerts を使う場合は Google アカウント
-- AWS にデプロイする場合だけ `aws` CLI と AWS CDK
+RSS 系のタブは `configs/<collector>/feed.toml` で情報源を増減でき、`keywords` を書くとタイトルや本文に一致した記事だけを残します。日本語を含む URL はパーセントエンコードして書いてください。
 
-## はじめ方
-
-1. リポジトリを取得します。
-
-   ```bash
-   git clone https://github.com/discus0434/nook.git
-   cd nook
-   ```
-
-2. `.env` を作成します。
-
-   ```bash
-   cp .env.example .env
-   ```
-
-3. `.env` に必要な値を設定します。
-
-   ```dotenv
-   LLM_MODEL=openai:gpt-5.4-mini
-   OPENAI_API_KEY=your_openai_api_key
-   REDDIT_CLIENT_ID=your_reddit_client_id
-   REDDIT_CLIENT_SECRET=your_reddit_client_secret
-   REDDIT_USER_AGENT=your_reddit_user_agent
-   PRODUCT_HUNT_API_KEY=your_product_hunt_api_key
-   PRODUCT_HUNT_DEVELOPER_TOKEN=your_product_hunt_developer_token
-
-   # 利用する provider に合わせて必要なキーを設定してください
-   # GOOGLE_API_KEY=your_google_api_key
-   # ANTHROPIC_API_KEY=your_anthropic_api_key
-   # OPENROUTER_API_KEY=your_openrouter_api_key
-
-   # AWS で独自の Secrets Manager 名を使う場合だけ設定
-   # NOOK_AWS_SECRET_ID=nook/runtime-secrets
-   ```
-
-   `LLM_MODEL` には `openai:gpt-5.4-mini` のような provider/model 形式の文字列を指定します。viewer の追加質問では、対応している provider の場合だけ組み込みの Web 検索を使います。非対応 provider では通常のチャットとして動きます。
-
-4. 依存関係をインストールします。
-
-   ```bash
-   uv sync --dev
-   ```
-
-## ローカルで使う
-
-Ubuntu では `systemd --user`、macOS では `launchd` を使って viewer と収集ジョブを登録できます。
-
-```bash
-make local-register
-```
-
-登録後は次の URL で viewer を開けます。
+## 構成
 
 ```text
-http://127.0.0.1:8080
+GitHub Actions(.github/workflows/collect.yml、毎日 06:00 JST と手動実行)
+  └─ Python の collector(nook/services/*)
+       ├─ Gemini API で要約(同じ入力は R2 のキャッシュを使う)
+       └─ Markdown と状態を R2 に保存(S3 互換 API)
+
+Cloudflare Worker「nook-viewer」(nook/deploy/cloudflare/viewer、TypeScript)
+  ├─ Cloudflare Access の JWT を毎回検証
+  ├─ R2 から記事を読んで画面を返す
+  ├─ /chat/{tab}  : Gemini API に Google 検索付きで質問する
+  └─ /retry/{tab} : GitHub Actions の collector を 1 件だけ起動する
 ```
 
-個別の収集ジョブを単発で実行したいときは `SERVICE` を指定します。
+collector は本家と同じ Python のコードです。保存先を環境変数で R2 に向けているので、本家の AWS 版やローカル版(`make local-register`)もそのまま動きます。
+
+## 導入
+
+GitHub リポジトリ、R2、Worker、Access の作り方は [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) にまとめています。必要なものは Cloudflare アカウント(R2 の有効化に支払い方法の登録が必要、無料枠内なら請求なし)、Gemini API キー、Reddit API の認証情報です。
+
+GitHub に登録する値は次のとおりです。
+
+| 種類 | 名前 |
+|---|---|
+| Secrets | `GOOGLE_API_KEY`、`REDDIT_CLIENT_ID`、`REDDIT_CLIENT_SECRET`、`REDDIT_USER_AGENT`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`R2_ENDPOINT_URL`、`PRODUCT_HUNT_API_KEY`、`PRODUCT_HUNT_DEVELOPER_TOKEN` |
+| Variables | `LLM_MODEL`(例: `google-gla:gemini-flash-lite-latest`)、`R2_BUCKET`、`NOOK_ENABLED_COLLECTORS`(毎朝動かす collector をカンマ区切りで) |
+
+## 開発
 
 ```bash
-make local-trigger SERVICE=reddit_explorer
+uv sync --dev
+make post-change        # ruff format、ruff check、pytest
+
+cd nook/deploy/cloudflare/viewer
+npm ci
+npm test                # Workers のランタイム上で vitest を実行
+npm run typecheck
+npm run deploy          # viewer を Cloudflare にデプロイ
 ```
 
-登録を外す場合は次を実行します。
+収集を手動で動かすときは `gh workflow run collect.yml -f collectors=jp_tech_news` のように collector 名を指定します。
 
-```bash
-make local-unregister
-```
+設計の詳細は [docs/DESIGN.md](docs/DESIGN.md) にあります。リポジトリ内で AI エージェントに作業させるときの決まりは [AGENTS.md](AGENTS.md) です。
 
-## AWS にデプロイする
+## 進め方と今後
 
-AWS CLI と AWS CDK の設定が済んでいれば、次のコマンドでデプロイできます。
+このリポジトリは Issue 駆動で進めています。不具合、要望、実装予定はすべて [Issues](https://github.com/shiyow5/nook/issues) に登録し、Issue ごとにブランチと Pull Request を作って閉じていきます。
 
-```bash
-make cdk-deploy
-```
+いま予定している主な作業は、arXiv(cs.CL / cs.LG / cs.AI)のキーワード収集、画面の刷新(日付のカレンダー選択、目次、デザイン)、画面からキーワードや収集対象を変える設定画面、Gemini の費用削減の検討([#1](https://github.com/shiyow5/nook/issues/1))です。その先に、お気に入り、用語辞書、AI による要約の添削やケーススタディといった学習支援の機能を [#23](https://github.com/shiyow5/nook/issues/23) で計画しています。
 
-このコマンドは `.env` と現在の環境変数を読み込み、`NOOK_AWS_SECRET_ID` で指定した Secrets Manager secret に必要な認証情報を反映したうえで CDK deploy を実行します。完了後に viewer の Function URL が表示されます。
+## ライセンスとクレジット
 
-## Cloudflare で動かす
-
-AWS を使わずに、collector を GitHub Actions、viewer を Cloudflare Workers、保存先を R2 にする構成も用意しています。手順は [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) を参照してください。
-
-## 設定ファイル
-
-このリポジトリに含まれている `configs/*.toml` はサンプルです。公開版に同梱されている内容をそのまま使うのではなく、自分の監視対象に合わせて編集してください。
-
-- `configs/reddit_explorer/subreddits.toml`
-  - 収集対象の subreddit を定義します。
-- `configs/github_trending/languages.toml`
-  - 追跡する言語を定義します。
-- `configs/tech_feed/feed.toml`
-  - 技術ブログなどの RSS を定義します。
-- `configs/tech_news/feed.toml`
-  - 複数 RSS を横断して集約する feed 一覧を定義します。
-  - 各 feed は `name`、`url`、`feed_name_display` を持ち、`keywords` は任意です。
-  - `keywords` を指定した場合は title、summary、content に一致した記事だけを残します。
-  - 同じ URL は 1 件にまとめ、各 feed からは 1 日あたり最大 10 件まで処理します。
-- `configs/jp_tech_news/feed.toml`
-  - viewer の「国内」タブに出す Zenn / Qiita / note / はてなブックマーク / DevelopersIO の RSS を定義します。書式は `tech_news` と同じです。
-- `configs/google_alerts/google_alerts.toml`
-  - Google Alerts の RSS を定義します。
-  - 同梱している URL はサンプルなので、実際に使う前に自分の RSS URL に置き換えてください。
-
-## ディレクトリ構成
-
-- `nook/services/`
-  - collector と viewer の本体です。
-- `nook/deploy/aws/`
-  - CDK、Lambda handler、AWS 向けの deploy 処理です。
-- `nook/deploy/local/`
-  - ローカル実行と service 登録まわりです。
-- `nook/deploy/github/`
-  - GitHub Actions から collector をまとめて実行する入口です。
-- `nook/deploy/cloudflare/viewer/`
-  - Cloudflare Workers 版の viewer(TypeScript)です。
-- `configs/`
-  - 各 collector が参照するサンプル設定ファイルです。
-- `docs/DESIGN.md`
-  - 現在の設計をまとめたドキュメントです。
-
-## 画面例
-
-PC 画面:
-
-![PC 画面](assets/screenshots/web-screenshot.webp)
-
-モバイル画面:
-
-![モバイル画面](assets/screenshots/mobile-screenshot.webp)
-
-チャット画面:
-
-![チャット画面](assets/screenshots/chat-screenshot.webp)
-
-## ライセンス
-
-このプロジェクトは GNU Affero General Public License v3.0 のもとで公開しています。詳細は [LICENSE](LICENSE) を参照してください。
-
-## 連絡先
-
-- GitHub Issues
-- X: [@IMG_5955](https://x.com/IMG_5955)
+このプロジェクトは [discus0434/nook](https://github.com/discus0434/nook) の派生物で、元のプロジェクトと同じ GNU Affero General Public License v3.0 で公開しています。詳細は [LICENSE](LICENSE) を参照してください。不具合や要望は [Issues](https://github.com/shiyow5/nook/issues) へお寄せください。
