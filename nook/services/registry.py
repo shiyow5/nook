@@ -48,6 +48,10 @@ COLLECTOR_RUNNERS: dict[str, CollectorRunner] = {
         module_path="nook.services.jp_tech_news.service",
         class_name="JpTechNews",
     ),
+    "arxiv_news": CollectorRunner(
+        module_path="nook.services.arxiv_news.service",
+        class_name="ArxivNews",
+    ),
 }
 
 
