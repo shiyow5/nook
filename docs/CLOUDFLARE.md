@@ -39,8 +39,11 @@ Cloudflare Worker「nook-viewer」(*.workers.dev、Cloudflare Access で保護)
    npx wrangler r2 bucket create nook-data
    ```
 
-3. ダッシュボードの「R2 > Manage API tokens」で、`nook-data` だけに「Object Read & Write」を許可したトークンを作ります。
-   表示された Access Key ID と Secret Access Key、エンドポイント `https://<アカウントID>.r2.cloudflarestorage.com` を控えます。
+3. R2 の S3 互換 API の鍵を用意します。方法は 2 通りあります。
+   - ダッシュボードの「R2 > Manage API tokens」で、`nook-data` だけに「Object Read & Write」を許可したトークンを作り、表示された Access Key ID と Secret Access Key を使う。
+   - 「Workers R2 Storage: Edit」を持つ Cloudflare API トークンから作る。Access Key ID はトークンの ID(`GET /user/tokens/verify` の `result.id`)、Secret Access Key はトークン文字列の SHA-256(16 進)になる。この構成の初回導入ではこちらを使った。
+
+   エンドポイントは `https://<アカウントID>.r2.cloudflarestorage.com` です。
 
 ## 2. GitHub に Secrets と Variables を登録する
 
