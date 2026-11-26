@@ -24,8 +24,8 @@
     "GITHUB_WORKFLOW": "collect.yml",
     "GITHUB_REF": "main",
     // Zero Trust のチーム名(<team>.cloudflareaccess.com の <team>)と Access アプリの AUD。
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_TEAM_DOMAIN": "shiyow-zt",
+    "ACCESS_AUD": "f2557568746f7de5580c1cddba50997ff47766ee598cc9ae881c879c26430d61"
   }
   // secrets(wrangler secret put で登録): GOOGLE_API_KEY, GITHUB_TOKEN
 }

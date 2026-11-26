@@ -83,7 +83,7 @@ gh variable set NOOK_ENABLED_COLLECTORS \
 
 ## 4. Cloudflare Access で保護する
 
-1. ダッシュボードの「Workers & Pages > nook-viewer > Settings > Domains & Routes」で、`workers.dev` の行にある「Enable Cloudflare Access」を選びます。
+1. ダッシュボードの「Workers & Pages > nook-viewer > Settings > Domains & Routes」で、`workers.dev` の行にある「Enable Cloudflare Access」を選びます。「Access: Apps and Policies: Edit」を持つ API トークンがあれば、`POST /accounts/<アカウントID>/access/apps` で `type: self_hosted`、`domain: nook-viewer.<サブドメイン>.workers.dev` のアプリを作っても同じです。
 2. 作られた Access アプリケーションのポリシーで、許可するメールアドレスを自分だけにします。
 3. Access アプリケーションの画面で、Application Audience(AUD)タグとチーム名(`<チーム名>.cloudflareaccess.com`)を確認します。
 4. `wrangler.jsonc` の `ACCESS_TEAM_DOMAIN` にチーム名、`ACCESS_AUD` に AUD を書き、もう一度 `npm run deploy` します。
