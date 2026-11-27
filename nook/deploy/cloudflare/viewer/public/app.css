@@ -138,13 +138,36 @@ button { font: inherit; color: inherit; }
 .study-head .icon-button { border: 0; background: var(--bg); }
 .study-article { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 .study-prompts { display: flex; flex-wrap: wrap; gap: 6px; }
-.study-label { font-size: 13px; font-weight: 600; color: #3f3f46; }
+.study-section { display: flex; flex-direction: column; gap: 10px; }
+.study-heading { margin: 0; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.study-wide { width: 100%; justify-content: center; min-height: 44px; }
+.term-list { display: flex; flex-direction: column; gap: 8px; }
+.term-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.term-word { font-size: 15px; font-weight: 700; }
+.term-text { font-size: 13px; line-height: 1.7; color: #3f3f46; }
+.study-loading, .study-error { margin: 0; font-size: 13px; color: var(--text-muted); }
+.study-error { color: #b42318; }
+.quiz-area { display: flex; flex-direction: column; gap: 14px; }
+.quiz-area:empty { display: none; }
+.quiz-question { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.quiz-text { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.6; }
+.quiz-choices { display: flex; flex-direction: column; gap: 6px; }
+.quiz-choice {
+  width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); text-align: left; font-size: 14px; line-height: 1.5; cursor: pointer;
+}
+.quiz-choice:disabled { cursor: default; color: var(--text-body); }
+.quiz-choice.correct { border-color: #1f7a4d; background: #e7f4ec; }
+.quiz-choice.wrong { border-color: #b42318; background: #fbeceb; }
+.quiz-result { margin: 0; font-size: 13px; line-height: 1.7; color: #3f3f46; }
+.quiz-score { margin: 0; font-size: 14px; font-weight: 700; }
+.study-chat { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); margin-top: auto; }
 .chat-log { display: flex; flex-direction: column; gap: 10px; }
 .chat-message { padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
 .chat-message.user { background: var(--accent-soft); color: var(--text); align-self: flex-end; max-width: 92%; white-space: pre-wrap; }
 .chat-message.assistant { background: var(--bg); }
 .chat-message.pending { color: var(--text-muted); }
-.chat-form { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); margin-top: auto; }
+.chat-form { display: flex; flex-direction: column; gap: 8px; }
 .chat-form textarea {
   resize: vertical; min-height: 72px; padding: 12px; border: 1px solid var(--line); border-radius: 12px;
   font: inherit; font-size: 14px; color: var(--text);

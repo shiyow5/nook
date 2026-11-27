@@ -13,6 +13,7 @@ import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "
 import { dispatchCollectorWorkflow } from "./github";
 import { renderIndexHtml } from "./page";
 import { loadSettingsState, saveSettings } from "./settings";
+import { generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
 import { renderSettingsHtml } from "./settingsPage";
 
 /** 設定は数十件のフィードでも数十 KB なので、それより大きい本文は受け付けない。 */
@@ -80,6 +81,10 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   const chatMatch = /^\/chat\/([^/]+)$/.exec(path);
   if (method === "POST" && chatMatch) {
     return chat(env, decodePathParam(chatMatch[1]), request, deps);
+  }
+  const studyMatch = /^\/api\/study\/([^/]+)$/.exec(path);
+  if (method === "POST" && studyMatch) {
+    return study(env, decodePathParam(studyMatch[1]), request, deps);
   }
   if (method === "POST" && path === "/api/settings") {
     return updateSettings(env, request, deps);
@@ -160,6 +165,47 @@ async function readMarkdown(env: NookEnv, appName: string, url: URL, deps: AppDe
     { markdown: record.content, articles: articles.map(articleToState), updated_at: record.updatedAt },
     { headers: { "cache-control": "no-store" } },
   );
+}
+
+async function study(env: NookEnv, appName: string, request: Request, deps: AppDeps): Promise<Response> {
+  ensureViewerService(viewerServiceNames(env), appName);
+  let payload: Record<string, unknown>;
+  try {
+    payload = ((await request.json()) ?? {}) as Record<string, unknown>;
+  } catch {
+    throw new HttpError(400, "Request body must be JSON");
+  }
+  const { article_id: articleId, date, kind } = payload;
+  if (typeof articleId !== "string" || typeof kind !== "string" || !STUDY_KINDS.has(kind)) {
+    throw new HttpError(400, "article_id と kind(terms / quiz)を指定してください");
+  }
+  const studyKind = kind as StudyKind;
+  const day = resolveDay(typeof date === "string" ? date : null, deps.now());
+  const cacheKey = studyCacheKey(appName, day, articleId, studyKind);
+  const cached = await env.NOOK_BUCKET.get(cacheKey);
+  if (cached !== null) {
+    return Response.json(JSON.parse(await cached.text()));
+  }
+  const record = await readMarkdownRecord(env.NOOK_BUCKET, appName, day);
+  if (record === null) {
+    throw new HttpError(404, "Markdown content not found");
+  }
+  const states = await resolveArticleStates(env.NOOK_BUCKET, appName, day, record.content);
+  const article = states.find((state) => state.articleId === articleId);
+  if (!article) {
+    throw new HttpError(404, "Article not found");
+  }
+  const items = await generateStudy({
+    kind: studyKind,
+    markdown: article.markdown,
+    apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
+    llmModel: env.LLM_MODEL,
+    fetchFn: deps.fetch,
+  });
+  const body = studyKind === "terms" ? { kind: studyKind, terms: items } : { kind: studyKind, questions: items };
+  // 同じ記事で何度開いても LLM を呼ばないよう保存する(R2 の 90 日の自動削除で消える)
+  await env.NOOK_BUCKET.put(cacheKey, JSON.stringify(body), { httpMetadata: { contentType: "application/json" } });
+  return Response.json(body);
 }
 
 async function chat(env: NookEnv, appName: string, request: Request, deps: AppDeps): Promise<Response> {

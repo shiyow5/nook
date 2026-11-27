@@ -106,18 +106,28 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length)}
         <button id="study-close" class="icon-button" type="button" aria-label="学びのパネルを閉じる">×</button>
       </div>
       <p id="study-article" class="study-article"></p>
-      <div class="study-prompts" role="group" aria-label="よく使う質問">
-        <button class="chip" type="button" data-prompt="この記事の要点を 3 行でまとめてください。">要点を 3 行で</button>
-        <button class="chip" type="button" data-prompt="この記事を理解するための前提知識を、入門者向けに教えてください。">前提知識を教えて</button>
-        <button class="chip" type="button" data-prompt="この記事に出てくる専門用語を 3〜5 個選び、それぞれ 1〜2 文で解説してください。">用語を解説して</button>
-        <button class="chip" type="button" data-prompt="この記事の内容の理解度を確かめる 3 問のクイズを、解答と解説つきで出してください。">理解度チェック</button>
-      </div>
-      <div id="chat-log" class="chat-log" aria-live="polite"></div>
-      <form id="chat-form" class="chat-form">
-        <label for="chat-input" class="study-label">この記事について AI に聞く</label>
-        <textarea id="chat-input" rows="3" placeholder="例: この手法は何が新しい?(Enter で送信、Shift+Enter で改行)"></textarea>
-        <button id="chat-submit" class="primary-button" type="submit">送信</button>
-      </form>
+      <section class="study-section" aria-labelledby="terms-title">
+        <h3 id="terms-title" class="study-heading">この記事に出てきた言葉</h3>
+        <div id="term-list" class="term-list" aria-live="polite"></div>
+      </section>
+      <section class="study-section" aria-label="理解度チェック">
+        <button id="quiz-button" class="accent-solid-button study-wide" type="button">理解度チェック(3 問)</button>
+        <div id="quiz-area" class="quiz-area" aria-live="polite"></div>
+      </section>
+      <button id="intro-button" class="text-button study-wide" type="button">入門の解説を読む</button>
+      <section class="study-chat" aria-labelledby="chat-title">
+        <h3 id="chat-title" class="study-heading">この記事について AI に聞く</h3>
+        <div class="study-prompts" role="group" aria-label="よく使う質問">
+          <button class="chip" type="button" data-prompt="この記事の要点を 3 行でまとめてください。">要点を 3 行で</button>
+          <button class="chip" type="button" data-prompt="この記事を理解するための前提知識を、入門者向けに教えてください。">前提知識を教えて</button>
+        </div>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <label for="chat-input" class="visually-hidden">質問</label>
+          <textarea id="chat-input" rows="3" placeholder="例: この手法は何が新しい?(Enter で送信、Shift+Enter で改行)"></textarea>
+          <button id="chat-submit" class="primary-button" type="submit">送信</button>
+        </form>
+      </section>
     </aside>
   </div>
 
