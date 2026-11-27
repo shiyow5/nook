@@ -7,7 +7,7 @@ const POLL_ATTEMPTS = 24;
 // これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
 const NARROW_QUERY = "(max-width: 760px)";
 // シートを下に引いたとき、元の高さのこの割合より低くなったら閉じる
-const SHEET_CLOSE_RATIO = 0.6;
+const SHEET_CLOSE_RATIO = 0.4;
 // 上に引いてこの高さ(画面に対する割合)を超えたら全画面に広げる
 const SHEET_FULL_RATIO = 0.75;
 const INTRO_PROMPT =
