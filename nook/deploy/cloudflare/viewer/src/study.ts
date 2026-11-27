@@ -2,11 +2,16 @@
 import { resolveGeminiModel, UpstreamError } from "./chat";
 import type { FetchFn } from "./env";
 
-export type StudyKind = "terms" | "quiz";
+export type StudyKind = "terms" | "quiz" | "intro" | "deep";
+/** Markdown の文章で返す解説(#18)。 */
+export type ExplanationKind = "intro" | "deep";
 export type Term = { word: string; explanation: string };
 export type QuizQuestion = { question: string; choices: string[]; answer_index: number; explanation: string };
 
-export const STUDY_KINDS: ReadonlySet<string> = new Set(["terms", "quiz"]);
+export const STUDY_KINDS: ReadonlySet<string> = new Set(["terms", "quiz", "intro", "deep"]);
+export const EXPLANATION_KINDS: ReadonlySet<string> = new Set(["intro", "deep"]);
+/** 解説が長くなりすぎたときに切る字数。 */
+const MAX_EXPLANATION_CHARS = 12_000;
 const MAX_TERMS = 6;
 const QUIZ_LENGTH = 3;
 const CHOICES = 4;
@@ -17,7 +22,7 @@ export function studyCacheKey(appName: string, day: string, articleId: string, k
   return `_state/study/${appName}/${day}/${articleId}-${kind}.json`;
 }
 
-const SCHEMAS: Record<StudyKind, unknown> = {
+const SCHEMAS: Record<"terms" | "quiz", unknown> = {
   terms: {
     type: "OBJECT",
     properties: {
@@ -54,6 +59,25 @@ const SCHEMAS: Record<StudyKind, unknown> = {
 };
 
 const INSTRUCTIONS: Record<StudyKind, string> = {
+  intro: `次の記事を、この分野に詳しくない人向けに解説してください。
+Markdown で、次の 4 つの見出しをこの文字のまま、この順に使ってください。見出しの後ろに注記を足さないでください。
+
+## 3 行まとめ
+## 身近な例え
+## 前提になる用語
+## なぜ大切か
+
+それぞれの中身は次のとおりです。「3 行まとめ」は箇条書き 3 行。「身近な例え」は日常の物事にたとえて 2〜4 文。「前提になる用語」は記事を読むのに要る用語を 3〜5 個、「- **用語**: 1 文の説明」の形。「なぜ大切か」はこの記事の内容が実務や社会でなぜ重要かを 2〜4 文。
+記事に書かれていないことを事実として足さないでください。`,
+  deep: `次の記事を、実務で使うエンジニア向けに深掘りして解説してください。
+Markdown で、次の 3 つの見出しをこの文字のまま、この順に使ってください。見出しの後ろに注記を足さないでください。
+
+## 技術的な仕組み
+## 実務での良い例と悪い例
+## 注意点
+
+それぞれの中身は次のとおりです。「技術的な仕組み」はどう動くのかを手順や構成要素に分けて説明。「実務での良い例と悪い例」は記事の技術を使う場面の例を、悪い例・良い例の順に言語名つきのコードブロックで示し、それぞれ何が問題で何が良いかを 1〜2 文で書く(コードにならない話題なら設定や運用の手順で示す)。「注意点」は導入するときの落とし穴や限界の箇条書き。
+記事に書かれていないことを事実として断定しないでください。推測は推測と分かるように書いてください。`,
   terms: `次の記事を学習する人のために、記事に出てくる専門用語を 3〜5 個選び、それぞれ入門者向けに 1〜2 文の日本語で説明してください。
 記事を読むうえで前提になる語を優先し、固有の製品名やモデル名だけの語は避けてください。説明は記事の文脈に合わせてください。`,
   quiz: `次の記事の理解度を確かめる 4 択問題を、ちょうど ${QUIZ_LENGTH} 問、日本語で作ってください。
@@ -140,8 +164,50 @@ export async function generateJson(args: {
   }
 }
 
+/** Markdown の文章をそのまま返させる(解説用)。 */
+export async function generateText(args: {
+  prompt: string;
+  apiKey: string;
+  llmModel: string;
+  fetchFn: FetchFn;
+}): Promise<string> {
+  const model = resolveGeminiModel(args.llmModel);
+  const response = await args.fetchFn(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": args.apiKey },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: args.prompt }] }] }),
+    },
+  );
+  if (!response.ok) {
+    throw new UpstreamError(`Gemini API returned ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  }
+  const payload = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const text = (payload.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join("").trim();
+  if (!text) {
+    throw new UpstreamError("Gemini API returned no text");
+  }
+  return text.slice(0, MAX_EXPLANATION_CHARS);
+}
+
+export async function generateExplanation(args: {
+  kind: ExplanationKind;
+  markdown: string;
+  apiKey: string;
+  llmModel: string;
+  fetchFn: FetchFn;
+}): Promise<string> {
+  return generateText({
+    prompt: buildStudyPrompt(args.kind, args.markdown),
+    apiKey: args.apiKey,
+    llmModel: args.llmModel,
+    fetchFn: args.fetchFn,
+  });
+}
+
 export async function generateStudy(args: {
-  kind: StudyKind;
+  kind: "terms" | "quiz";
   markdown: string;
   apiKey: string;
   llmModel: string;

@@ -29,7 +29,7 @@ import { INDEX_SHELL, renderIndexBody } from "./page";
 import { loadingMessage, renderShellHead, streamPage } from "./shell";
 import { renderArticle, renderMarkdownHtml } from "./render";
 import { loadSettingsState, saveSettings } from "./settings";
-import { generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
+import { generateExplanation, generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
 import { renderSettingsHtml } from "./settingsPage";
 
 /** 設定は数十件のフィードでも数十 KB なので、それより大きい本文は受け付けない。 */
@@ -336,7 +336,7 @@ async function study(env: NookEnv, appName: string, request: Request, deps: AppD
   }
   const { article_id: articleId, date, kind } = payload;
   if (typeof articleId !== "string" || typeof kind !== "string" || !STUDY_KINDS.has(kind)) {
-    throw new HttpError(400, "article_id と kind(terms / quiz)を指定してください");
+    throw new HttpError(400, "article_id と kind(terms / quiz / intro / deep)を指定してください");
   }
   const studyKind = kind as StudyKind;
   const day = resolveDay(typeof date === "string" ? date : null, deps.now());
@@ -354,14 +354,21 @@ async function study(env: NookEnv, appName: string, request: Request, deps: AppD
   if (!article) {
     throw new HttpError(404, "Article not found");
   }
-  const items = await generateStudy({
-    kind: studyKind,
+  const llm = {
     markdown: article.markdown,
     apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
     llmModel: env.LLM_MODEL,
     fetchFn: deps.fetch,
-  });
-  const body = studyKind === "terms" ? { kind: studyKind, terms: items } : { kind: studyKind, questions: items };
+  };
+  let body: Record<string, unknown>;
+  if (studyKind === "intro" || studyKind === "deep") {
+    // 解説(#18)は Markdown で受け取り、チャットと同じサニタイザで HTML にしてから保存する
+    const markdown = await generateExplanation({ kind: studyKind, ...llm });
+    body = { kind: studyKind, markdown, html: await renderMarkdownHtml(markdown) };
+  } else {
+    const items = await generateStudy({ kind: studyKind, ...llm });
+    body = studyKind === "terms" ? { kind: studyKind, terms: items } : { kind: studyKind, questions: items };
+  }
   // 同じ記事で何度開いても LLM を呼ばないよう保存する(R2 の 90 日の自動削除で消える)
   await env.NOOK_BUCKET.put(cacheKey, JSON.stringify(body), { httpMetadata: { contentType: "application/json" } });
   return Response.json(body);

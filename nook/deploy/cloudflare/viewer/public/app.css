@@ -633,3 +633,11 @@ body.is-leaving::before {
 .term-dialog::backdrop { background: rgba(24, 24, 27, 0.36); }
 .term-dialog h2 { margin: 0; font-size: 18px; }
 .term-dialog .term-form { margin-top: 0; }
+
+/* 解説の入門と深掘り(#18) */
+.study-modes { align-self: flex-start; }
+.explain-area { font-size: 15px; line-height: 1.8; }
+.explain-area h2 { font-size: 16px; margin: 1.2em 0 0.4em; }
+.explain-area h2:first-child { margin-top: 0; }
+.explain-area pre { overflow-x: auto; padding: 10px; border-radius: 8px; background: #18181b; color: #f4f4f5; font-size: 13px; }
+.explain-area code { font-size: 0.9em; }

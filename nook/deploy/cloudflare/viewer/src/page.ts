@@ -94,7 +94,14 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)
         <button id="quiz-button" class="accent-solid-button study-wide" type="button">理解度チェック(3 問)</button>
         <div id="quiz-area" class="quiz-area" aria-live="polite"></div>
       </section>
-      <button id="intro-button" class="text-button study-wide" type="button">入門の解説を読む</button>
+      <section class="study-section" aria-labelledby="explain-title">
+        <h3 id="explain-title" class="study-heading">解説</h3>
+        <div class="segmented study-modes" role="group" aria-label="解説の深さ">
+          <button id="explain-intro" type="button" aria-pressed="false" data-kind="intro">入門</button>
+          <button id="explain-deep" type="button" aria-pressed="false" data-kind="deep">深掘り</button>
+        </div>
+        <div id="explain-area" class="explain-area markdown-content" aria-live="polite"></div>
+      </section>
     </aside>
 
     <aside id="chat-panel" class="study-panel chat-panel" aria-labelledby="chat-title" hidden>
