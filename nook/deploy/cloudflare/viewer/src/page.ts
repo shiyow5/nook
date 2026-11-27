@@ -143,6 +143,11 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)
         </form>
         <div id="review-result" class="practice-result" aria-live="polite"></div>
       </section>
+      <section class="study-section" aria-labelledby="case-title">
+        <h3 id="case-title" class="study-heading">実務ケーススタディ</h3>
+        <p class="practice-note">記事の内容から、現場で起こりうる状況の問題を AI が出します。回答すると、良い判断・見落としやすいリスク・模範解答例が返ります。</p>
+        <div id="case-area" class="case-area" aria-live="polite"></div>
+      </section>
       <section class="study-section" aria-labelledby="practice-history-title">
         <h3 id="practice-history-title" class="study-heading">この記事のこれまでのやり取り</h3>
         <div id="practice-history" class="practice-history"></div>

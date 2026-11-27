@@ -666,3 +666,9 @@ body.is-leaving::before {
   .practice-fab { right: 20px; bottom: 148px; }
   body[data-view="list"] .practice-fab { display: none; }
 }
+.case-area { display: flex; flex-direction: column; gap: 10px; }
+.case-question { padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; }
+.case-situation, .case-ask { margin: 0; font-size: 14px; line-height: 1.8; color: var(--text-body); }
+.case-ask { font-weight: 700; }
+.case-hints { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.75; color: var(--text-muted); }
+.model-answer { margin: 0; font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: var(--text-body); }
