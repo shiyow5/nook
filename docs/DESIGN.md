@@ -7,7 +7,7 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
 ## 実行モード
 
 - Cloudflare(詳細は `docs/CLOUDFLARE.md`):
-  - collector は `.github/workflows/collect.yml` が毎日 06:00 JST と workflow_dispatch で実行する。`nook/deploy/github/run_collectors.py` がカンマ区切りの collector を順に実行し、失敗があっても残りを実行してから非 0 で終了する。
+  - collector は `.github/workflows/collect.yml` が毎日 06:17 JST と workflow_dispatch で実行する。`nook/deploy/github/run_collectors.py` がカンマ区切りの collector を順に実行し、失敗があっても残りを実行してから非 0 で終了する。
   - 保存先は `S3StorageBackend` を `NOOK_S3_ENDPOINT_URL` / `NOOK_S3_REGION` で R2 に向けたもの。runner は `TZ=Asia/Tokyo` で動かし、日付を JST に揃える。
   - viewer は `nook/deploy/cloudflare/viewer/` の TypeScript Worker。R2 binding から Markdown と state を読み書きし、`viewer.js` / `viewer.css` は Workers static assets として `/static/*` で配信する。API の形は Python 版と同じで、天気 API は持たない。
   - chat は Gemini generateContent を `google_search` tool 付きで呼ぶ。retry は GitHub の workflow_dispatch を `collectors=<service>` で呼ぶ。
