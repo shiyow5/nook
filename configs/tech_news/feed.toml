@@ -8,13 +8,20 @@ feed_name_display = "TechCrunch AI"
 
 [[feeds]]
 name = "36Kr"
-url = "https://36kr.com/feed-article"
+# 36kr.com は Bot 確認のページを返すため www. の方を使う(#9)。記事は中国語なので中国語の語でも絞る
+url = "https://www.36kr.com/feed"
 feed_name_display = "36Kr"
 keywords = [
     "ai",
     "artificial intelligence",
     "funding",
     "machine learning",
+    "人工智能",
+    "大模型",
+    "具身智能",
+    "机器人",
+    "算力",
+    "芯片",
 ]
 
 # 海外の AI 企業・研究ブログ

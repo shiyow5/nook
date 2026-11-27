@@ -80,6 +80,7 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
   - `paper_summarizer` は論文本文が大きいため、他 collector より長い LLM request timeout を使う。
   - `paper_summarizer` は Hugging Face papers API の `upvotes` を使って新着 paper を降順に並べ、既読 ID を除いた順で処理する。
   - `reddit_explorer` は設定された subreddit 群から集めた post を一度集約し、`upvotes` 降順で markdown 化する。
+  - `tech_news` 系(tech_news / jp_tech_news)は記事ページの本文と RSS の本文(content か summary)を比べ、長い方を要約に使う。記事ページが Bot 確認のページを返すサイト(36Kr など、#9)でも、RSS に全文があれば要約できる。
 - `nook/services/jp_tech_news/service.py`
   - `TechNews` の `SERVICE_NAME` だけを `jp_tech_news` に変えた subclass。設定は `configs/jp_tech_news/feed.toml` から読み、viewer の「国内」タブに出る。
 - `nook/services/arxiv_news/service.py`
