@@ -96,3 +96,17 @@ describe("glossary (#17)", () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+describe("select a word in the article (#16)", () => {
+  it("ships the popup, the dialog and selection.js on the detail screen", async () => {
+    await env.NOOK_BUCKET.put("tech_news/2026-11-26.md", "# A\n\n本文");
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(new Request(`${ORIGIN}/read?date=2026-11-26`), testEnv(), deps)).text();
+
+    expect(html).toMatch(/<script defer src="\/static\/selection.js\?v=[^"]+"><\/script>/);
+    expect(html).toContain('id="selection-popup"');
+    expect(html).toMatch(/<button type="button" data-mode="important">⭐ 重要<\/button>/);
+    expect(html).toContain('<dialog id="term-dialog"');
+  });
+});
