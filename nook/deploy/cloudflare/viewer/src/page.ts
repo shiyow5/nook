@@ -43,7 +43,7 @@ export function renderIndexHtml(
   <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
   <script defer src="/static/app.js?v=${version}"></script>
 </head>
-<body>
+<body data-view="list">
   <header class="topbar">
     <button id="menu-button" class="icon-button" type="button" aria-label="タブのメニューを開く" aria-expanded="false" aria-controls="tab-drawer">${icon("menu")}</button>
     <a class="brand" href="/">
@@ -118,6 +118,7 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length)}
     </aside>
   </div>
 
+  <div id="study-backdrop" class="study-backdrop" hidden></div>
   <button id="study-fab" class="study-fab" type="button" aria-label="今日の学びを開く" aria-controls="study-panel" aria-expanded="false" title="今日の学び">${icon("book", 26)}</button>
 
   <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
