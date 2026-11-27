@@ -59,7 +59,7 @@ export function renderIndexHtml(
       <button id="prev-day" class="icon-button" type="button" aria-label="前の日">‹</button>
       <label class="date-field">
         ${icon("calendar", 18)}
-        <span id="date-label" class="date-label" aria-hidden="true">${escapeHtml(formatDayLabel(page.date))}</span>
+        <span id="date-label" class="date-label" aria-hidden="true"><span class="date-label-full">${escapeHtml(formatDayLabel(page.date))}</span><span class="date-label-short">${escapeHtml(formatShortDayLabel(page.date))}</span></span>
         <span class="visually-hidden">日付を選ぶ</span>
         <input id="date" name="date" type="date" value="${escapeHtml(page.date)}" max="${escapeHtml(today)}">
       </label>
@@ -167,6 +167,11 @@ export function formatDayLabel(day: string): string {
   const [year, month, date] = day.split("-").map(Number);
   const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, date)).getUTCDay()];
   return `${year}年${month}月${date}日(${weekday})`;
+}
+
+/** 2026-11-27 → 11月27日(金)。スマホのヘッダー用。 */
+export function formatShortDayLabel(day: string): string {
+  return formatDayLabel(day).replace(/^\d+年/, "");
 }
 
 /** <script> 内に埋め込んでも閉じタグや HTML として解釈されないよう JSON をエスケープする。 */

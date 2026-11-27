@@ -80,6 +80,7 @@ button { font: inherit; color: inherit; }
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text-muted);
 }
 .date-label { color: var(--text); font-size: 15px; font-weight: 600; white-space: nowrap; }
+.date-label-short { display: none; }
 /* 見た目は日本語の表記を出し、実際の入力欄は上に透明で重ねてカレンダーを開けるようにする */
 .date-field input {
   position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; cursor: pointer;
@@ -255,21 +256,21 @@ button { font: inherit; color: inherit; }
 /* スマホ(#28): 一覧と本文を切り替え、学びパネルは下から出すシートにする */
 @media (max-width: 760px) {
   :root { --topbar-h: 0px; }
-  /* 1 段目: メニュー・タブ名・設定、2 段目: 日付と絞り込み。スクロールしても上に残す */
+  /* 1 段目: メニュー・アイコンとタブ名・日付・設定、2 段目: 絞り込み。スクロールしても上に残す */
   .topbar { position: sticky; top: 0; padding: 8px 12px; gap: 8px; }
-  #settings-link { order: 0; }
-  .topbar-tools { display: flex; flex: 1 1 100%; align-items: center; gap: 8px; min-width: 0; }
-  .topbar-tools .filter-field { flex: 1 1 120px; min-width: 0; margin-left: 0; order: 0; height: 40px; }
-  .brand { margin-right: auto; gap: 6px; }
+  .topbar-tools { display: contents; }
+  .brand { order: 1; flex: 1 1 auto; min-width: 0; margin-right: 0; gap: 6px; }
   .brand-name, .brand-sep { display: none; }
-  .brand-tab { font-size: 16px; font-weight: 700; }
-  .date-nav { gap: 4px; }
-  .date-field { padding: 0 10px; }
+  .brand-tab { font-size: 16px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .date-nav { order: 2; }
+  #settings-link { order: 3; }
+  .filter-field { order: 4; flex: 1 1 100%; min-width: 0; margin-left: 0; height: 40px; }
+  /* 前後の日と「今日」はカレンダーから選べるので、スマホでは出さない */
+  #prev-day, #next-day, #today-button { display: none; }
+  .date-field { height: 44px; padding: 0 12px; }
   .date-field svg { display: none; }
-  .date-label { font-size: 14px; }
-  .date-nav .icon-button { width: 40px; height: 40px; }
-  .date-field { height: 40px; }
-  body[data-view="read"] .topbar-tools .date-nav { flex: 1 1 auto; }
+  .date-label-full { display: none; }
+  .date-label-short { display: inline; }
   body[data-view="read"] .filter-field { display: none; }
 
   .layout { display: block; min-height: 0; }
