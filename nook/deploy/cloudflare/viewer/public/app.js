@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   listOpen: "nook.listOpen",
   studyOpen: "nook.studyOpen",
   chatOpen: "nook.chatOpen",
+  practiceOpen: "nook.practiceOpen",
   // ホームの「続きから読む」(home.js)が読む、最後に開いた記事
   lastRead: "nook.lastRead",
 };
@@ -120,6 +121,10 @@ function startViewer() {
     listOpen: readStoredFlag(STORAGE_KEYS.listOpen, true),
     studyOpen: readStoredFlag(STORAGE_KEYS.studyOpen, false),
     chatOpen: readStoredFlag(STORAGE_KEYS.chatOpen, false) && !readStoredFlag(STORAGE_KEYS.studyOpen, false),
+    practiceOpen:
+      readStoredFlag(STORAGE_KEYS.practiceOpen, false) &&
+      !readStoredFlag(STORAGE_KEYS.studyOpen, false) &&
+      !readStoredFlag(STORAGE_KEYS.chatOpen, false),
     chats: {},
     pendingChats: new Set(),
     pollTimerId: null,
@@ -166,6 +171,9 @@ function startViewer() {
     studyBackdrop: $("study-backdrop"),
     chatPanel: $("chat-panel"),
     chatFab: $("chat-fab"),
+    practicePanel: $("practice-panel"),
+    practiceFab: $("practice-fab"),
+    practiceClose: $("practice-close"),
     chatClose: $("chat-close"),
     chatArticle: $("chat-article"),
     chatLog: $("chat-log"),
@@ -855,7 +863,7 @@ function startViewer() {
   }
 
   function renderStudy() {
-    const anyOpen = runtime.studyOpen || runtime.chatOpen;
+    const anyOpen = runtime.studyOpen || runtime.chatOpen || runtime.practiceOpen;
     // シートを開いている間は裏の画面をスクロールさせない
     document.body.classList.toggle("sheet-open", anyOpen && narrow.matches);
     if (!runtime.studyOpen) {
@@ -864,6 +872,12 @@ function startViewer() {
     if (!runtime.chatOpen) {
       el.chatPanel.classList.remove("sheet-full");
     }
+    if (!runtime.practiceOpen) {
+      el.practicePanel.classList.remove("sheet-full");
+    }
+    el.practicePanel.hidden = !runtime.practiceOpen;
+    el.practiceFab.hidden = anyOpen;
+    el.practiceFab.setAttribute("aria-expanded", String(runtime.practiceOpen));
     el.studyPanel.hidden = !runtime.studyOpen;
     el.chatPanel.hidden = !runtime.chatOpen;
     el.studyBackdrop.hidden = !anyOpen;
@@ -878,6 +892,10 @@ function startViewer() {
     renderTerms(article);
     renderQuiz(article);
     renderExplanation(article);
+    // 演習パネル(practice.js)は、記事や開閉が変わったことをこの合図で知る
+    document.dispatchEvent(
+      new CustomEvent("nook:panels-render", { detail: { practiceOpen: runtime.practiceOpen } }),
+    );
     if (runtime.studyOpen && article && studyEntry(article).terms.status === "idle") {
       loadStudy("terms");
     }
@@ -975,13 +993,15 @@ function startViewer() {
   }
 
   // 学びパネルとチャットのパネルは同じ場所に出すので、片方を開くともう片方は閉じる
-  function setPanels(studyOpen, chatOpen) {
+  function setPanels(studyOpen, chatOpen, practiceOpen = false) {
     runtime.studyOpen = studyOpen;
     runtime.chatOpen = chatOpen;
+    runtime.practiceOpen = practiceOpen;
     // スマホでは画面を覆うシートなので、次に開いたときに勝手に出ないよう覚えない
     if (!narrow.matches) {
       storeFlag(STORAGE_KEYS.studyOpen, studyOpen);
       storeFlag(STORAGE_KEYS.chatOpen, chatOpen);
+      storeFlag(STORAGE_KEYS.practiceOpen, practiceOpen);
     }
     renderStudy();
   }
@@ -989,6 +1009,11 @@ function startViewer() {
   function setStudyOpen(open) {
     setPanels(open, false);
     (open ? el.studyClose : el.studyFab).focus();
+  }
+
+  function setPracticeOpen(open) {
+    setPanels(false, false, open);
+    (open ? el.practiceClose : el.practiceFab).focus();
   }
 
   function setChatOpen(open) {
@@ -1143,6 +1168,9 @@ function startViewer() {
   el.studyClose.addEventListener("click", () => setStudyOpen(false));
   el.studyBackdrop.addEventListener("click", () => setPanels(false, false));
   el.chatFab.addEventListener("click", () => setChatOpen(true));
+  el.practiceFab.addEventListener("click", () => setPracticeOpen(true));
+  el.practiceClose.addEventListener("click", () => setPracticeOpen(false));
+  enableSheetDrag(el.practicePanel, () => setPracticeOpen(false));
   enableSheetDrag(el.studyPanel, () => setStudyOpen(false));
   enableSheetDrag(el.chatPanel, () => setChatOpen(false));
   el.chatClose.addEventListener("click", () => setChatOpen(false));
@@ -1191,7 +1219,7 @@ function startViewer() {
       if (window.nookMenu?.isOpen()) {
         return;
       }
-      if ((runtime.studyOpen || runtime.chatOpen) && narrow.matches) {
+      if ((runtime.studyOpen || runtime.chatOpen || runtime.practiceOpen) && narrow.matches) {
         setPanels(false, false);
       }
       return;
@@ -1209,6 +1237,7 @@ function startViewer() {
   if (narrow.matches) {
     runtime.studyOpen = false;
     runtime.chatOpen = false;
+    runtime.practiceOpen = false;
   }
   // ホームから記事を指定して開いたとき(/read?tab=…&article=…)は、その記事を出す
   const requestedArticle = new URL(window.location.href).searchParams.get("article");
@@ -1225,7 +1254,9 @@ function startViewer() {
   window.nookReader = {
     currentArticle() {
       const article = currentArticle();
-      return article ? { app: runtime.currentApp, date: runtime.date, article_id: article.article_id } : null;
+      return article
+        ? { app: runtime.currentApp, date: runtime.date, article_id: article.article_id, title: article.title }
+        : null;
     },
   };
   render();
