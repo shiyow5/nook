@@ -5,7 +5,7 @@ AWS を使わずに、GitHub Actions と Cloudflare の無料枠で nook を動�
 ## 構成
 
 ```text
-GitHub Actions(毎日 06:00 JST の cron / 手動実行)
+GitHub Actions(毎日 06:17 JST の cron / 手動実行)
   └─ Python の collector を実行
        └─ Markdown と state を R2(S3 互換 API)へ保存
 

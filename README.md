@@ -33,7 +33,7 @@ RSS 系のタブは `configs/<collector>/feed.toml` で情報源を増減でき�
 ## 構成
 
 ```text
-GitHub Actions(.github/workflows/collect.yml、毎日 06:00 JST と手動実行)
+GitHub Actions(.github/workflows/collect.yml、毎日 06:17 JST と手動実行)
   └─ Python の collector(nook/services/*)
        ├─ Gemini API で要約(同じ入力は R2 のキャッシュを使う)
        └─ Markdown と状態を R2 に保存(S3 互換 API)
