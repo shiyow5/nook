@@ -124,7 +124,9 @@ export async function readLimitedText(response: Response, maxBytes: number): Pro
 /** LLM に渡す補助テキストを作るだけなので、HTML は正規表現で大まかに処理する。 */
 export function extractMainText(html: string): string {
   const withoutNoise = html.replace(/<(script|style|nav|header|footer)\b[\s\S]*?<\/\1\s*>/gi, " ");
+  // arXiv の論文ページは <main> の先頭がパンくずと著者欄なので、アブストラクトを先に探す
   const main =
+    /<blockquote\b[^>]*class="abstract\b[^"]*"[^>]*>([\s\S]*?)<\/blockquote\s*>/i.exec(withoutNoise)?.[1] ??
     /<article\b[^>]*>([\s\S]*?)<\/article\s*>/i.exec(withoutNoise)?.[1] ??
     /<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(withoutNoise)?.[1] ??
     /<body\b[^>]*>([\s\S]*?)<\/body\s*>/i.exec(withoutNoise)?.[1] ??

@@ -120,3 +120,33 @@ def test_old_entries_are_still_dropped_by_threshold(collector) -> None:
     )
 
     assert kept == []
+
+
+def test_arxiv_news_uses_rss_abstract_without_fetching_the_page(
+    collector, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_get(*args, **kwargs):
+        raise AssertionError("arXiv の論文ページは取得しない")
+
+    monkeypatch.setattr(tech_news_service.requests, "get", fail_get)
+    entry = _entry("https://arxiv.org/abs/2611.34051?context=cs", "new")
+    entry["summary_detail"] = {
+        "value": "arXiv:2611.34051v1 Announce Type: new \n"
+        "Abstract: Gated DeltaNet <b>suffers</b> from recurrent state instability."
+    }
+
+    article = collector._retrieve_article(entry, feed_name="arXiv cs.CL")
+
+    assert article is not None
+    assert article.url == "https://arxiv.org/abs/2611.34051"
+    assert article.text == (
+        "KV cache compression\n\n"
+        "Gated DeltaNet suffers from recurrent state instability."
+    )
+
+
+def test_arxiv_news_skips_entries_without_abstract(collector) -> None:
+    entry = _entry("https://arxiv.org/abs/2611.00009", "new")
+    entry["summary_detail"] = {"value": "arXiv:2611.00009v1 Announce Type: new \n"}
+
+    assert collector._retrieve_article(entry, feed_name="arXiv cs.CL") is None

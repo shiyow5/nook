@@ -1,14 +1,18 @@
+import re
 from datetime import date, timedelta
 from typing import Any
 
 import feedparser
+from bs4 import BeautifulSoup
 
-from nook.services.tech_news.service import TechNews
+from nook.services.tech_news.service import Article, TechNews
 
 # arXiv RSS の announce_type。replace / replace-cross は既存論文の改訂なので扱わない
 _NEW_ANNOUNCE_TYPES = frozenset({"new", "cross"})
 # paper_summarizer(Hugging Face Daily Papers)の既読 ID を何日分さかのぼるか
 _HUGGING_FACE_LOOKBACK_DAYS = 7
+# RSS の説明文は「arXiv:<id> Announce Type: new\nAbstract: 本文」の形
+_ABSTRACT_PREFIX = re.compile(r"^.*?Abstract:\s*", re.DOTALL)
 
 
 class ArxivNews(TechNews):
@@ -28,6 +32,26 @@ class ArxivNews(TechNews):
             if entry.get("arxiv_announce_type", "new") in _NEW_ANNOUNCE_TYPES
         ]
 
+    def _retrieve_article(
+        self,
+        entry: dict[str, Any],
+        feed_name: str,
+    ) -> Article | None:
+        """論文ページはアブストラクトが p 要素に無く拾えないので、RSS のアブストラクトを使う。"""
+        url = entry.get("link", "").split("?")[0]
+        abstract = _abstract_text(entry)
+        if not abstract:
+            print(f"Abstract not found in RSS for: {url}")
+            return None
+        title = entry.get("title", "Unknown Title")
+        return Article(
+            feed_name=feed_name,
+            title=title,
+            url=url,
+            text=f"{title}\n\n{abstract}",
+            soup=BeautifulSoup("", "html.parser"),
+        )
+
     def _initially_processed_urls(self) -> set[str]:
         """Hugging Face Daily Papers で直近に要約した論文は arXiv タブでは要約しない。"""
         processed: set[str] = set()
@@ -44,3 +68,11 @@ class ArxivNews(TechNews):
                 if arxiv_id.strip()
             )
         return processed
+
+
+def _abstract_text(entry: dict[str, Any]) -> str:
+    raw = entry.get("summary_detail", {}).get("value") or entry.get("summary", "")
+    text = BeautifulSoup(raw, "html.parser").get_text()
+    if "Abstract:" not in text:
+        return ""
+    return " ".join(_ABSTRACT_PREFIX.sub("", text, count=1).split())
