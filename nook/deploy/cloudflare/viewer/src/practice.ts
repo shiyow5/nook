@@ -186,3 +186,121 @@ export async function reviewSummary(args: {
   }
   return output;
 }
+
+// ケーススタディ(#20)。問題は記事ごとに R2 に 1 つ残し、回答のレビューはその問題に対して行う
+// (クライアントから問題文を受け取らない)。
+export const MIN_ANSWER_CHARS = 10;
+export const MAX_ANSWER_CHARS = 3000;
+
+export type CaseQuestion = { situation: string; question: string; hints: string[] };
+export type CaseReview = { good_points: string[]; risks: string[]; model_answer: string };
+
+export function caseCacheKey(app: string, day: string, articleId: string): string {
+  return `_state/study/${app}/${day}/${articleId}-case.json`;
+}
+
+const CASE_SCHEMA = {
+  type: "OBJECT",
+  properties: { situation: { type: "STRING" }, question: { type: "STRING" }, hints: STRING_LIST },
+  required: ["situation", "question", "hints"],
+};
+
+const CASE_REVIEW_SCHEMA = {
+  type: "OBJECT",
+  properties: { good_points: STRING_LIST, risks: STRING_LIST, model_answer: { type: "STRING" } },
+  required: ["good_points", "risks", "model_answer"],
+};
+
+function requiredText(value: unknown, field: string, max: number): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new UpstreamError(`${field} の出力の形式が正しくありません`);
+  }
+  return value.trim().slice(0, max);
+}
+
+export function parseAnswer(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new HttpError(400, "回答を入力してください");
+  }
+  const answer = value.trim();
+  if (answer.length < MIN_ANSWER_CHARS) {
+    throw new HttpError(400, `回答は ${MIN_ANSWER_CHARS} 字以上で書いてください`);
+  }
+  if (answer.length > MAX_ANSWER_CHARS) {
+    throw new HttpError(400, `回答は ${MAX_ANSWER_CHARS} 字以内にしてください`);
+  }
+  return answer;
+}
+
+export async function generateCase(args: {
+  markdown: string;
+  apiKey: string;
+  llmModel: string;
+  fetchFn: FetchFn;
+}): Promise<CaseQuestion> {
+  const parsed = (await generateJson({
+    prompt: `次の記事の内容を、実務で使う力を確かめるケーススタディの問題にしてください。日本語で次の 3 つを返してください。
+- situation: 現場で起こりうる具体的な状況(登場する役割、システムや組織の前提、起きている問題)を 3〜6 文で
+- question: その状況で学習者がどう判断・対応するかを問う 1 つの問い。記事の内容を使えば答えられるものにする
+- hints: 考える手がかりを 2〜3 個。1 つ目はやさしく、後ろほど答えに近づける。答えそのものは書かない
+
+[記事]
+
+${args.markdown.slice(0, MAX_ARTICLE_CHARS)}`,
+    schema: CASE_SCHEMA,
+    apiKey: args.apiKey,
+    llmModel: args.llmModel,
+    fetchFn: args.fetchFn,
+  })) as Record<string, unknown>;
+  const hints = stringList(parsed?.hints, "hints", 3);
+  if (hints.length === 0) {
+    throw new UpstreamError("hints の出力が空でした");
+  }
+  return {
+    situation: requiredText(parsed?.situation, "situation", 1500),
+    question: requiredText(parsed?.question, "question", 600),
+    hints,
+  };
+}
+
+export async function reviewCaseAnswer(args: {
+  markdown: string;
+  caseQuestion: CaseQuestion;
+  answer: string;
+  apiKey: string;
+  llmModel: string;
+  fetchFn: FetchFn;
+}): Promise<CaseReview> {
+  const parsed = (await generateJson({
+    prompt: `あなたは実務に詳しい先輩エンジニアです。記事をもとにしたケーススタディへの学習者の回答をレビューしてください。日本語で次の 3 つを返してください。
+- good_points: 回答の良い判断(1〜4 個)。なぜ良いのかも書く。良い点がなければ空の配列
+- risks: 回答で見落としやすいリスクや、足りない観点(1〜4 個)
+- model_answer: 模範解答の例(箇条書きや段落を含む Markdown で 5〜12 行)
+厳しすぎず、ただし誤りははっきり指摘してください。
+
+[記事]
+
+${args.markdown.slice(0, MAX_ARTICLE_CHARS)}
+
+[状況]
+
+${args.caseQuestion.situation}
+
+[問い]
+
+${args.caseQuestion.question}
+
+[学習者の回答]
+
+${args.answer}`,
+    schema: CASE_REVIEW_SCHEMA,
+    apiKey: args.apiKey,
+    llmModel: args.llmModel,
+    fetchFn: args.fetchFn,
+  })) as Record<string, unknown>;
+  return {
+    good_points: stringList(parsed?.good_points, "good_points", 4),
+    risks: stringList(parsed?.risks, "risks", 4),
+    model_answer: requiredText(parsed?.model_answer, "model_answer", 4000),
+  };
+}

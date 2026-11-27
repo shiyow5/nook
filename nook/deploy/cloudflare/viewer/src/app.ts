@@ -25,9 +25,15 @@ import {
 } from "./glossary";
 import { GLOSSARY_SHELL, renderGlossaryBody } from "./glossaryPage";
 import {
+  type CaseQuestion,
+  caseCacheKey,
+  generateCase,
   listSessionsForArticle,
   loadArticleMarkdown,
+  type PracticeSession,
+  parseAnswer,
   parseSummary,
+  reviewCaseAnswer,
   reviewSummary,
   saveSession,
   sessionToState,
@@ -262,27 +268,62 @@ async function practice(
   const payload = ((await readJson(request)) ?? {}) as Record<string, unknown>;
   const articleId = articleRef(payload.article_id);
   const day = resolveDay(typeof payload.date === "string" ? payload.date : null, deps.now());
-  if (payload.kind !== "review") {
-    throw new HttpError(400, "kind は review にしてください");
+  const kind = payload.kind;
+  if (kind !== "review" && kind !== "case_question" && kind !== "case_review") {
+    throw new HttpError(400, "kind は review / case_question / case_review のどれかにしてください");
   }
-  const summary = parseSummary(payload.summary);
+  // 入力の形を先に確かめ、LLM と R2 を無駄に呼ばない
+  const summary = kind === "review" ? parseSummary(payload.summary) : "";
+  const answer = kind === "case_review" ? parseAnswer(payload.answer) : "";
   const markdown = await loadArticleMarkdown(env.NOOK_BUCKET, appName, day, articleId);
-  const output = await reviewSummary({
+  const llm = {
     markdown,
-    summary,
     apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
     llmModel: env.LLM_MODEL,
     fetchFn: deps.fetch,
-  });
-  const session = await saveSession(env.DB, {
-    kind: "review",
-    app: appName,
-    day,
-    articleId,
-    input: { summary },
-    output,
-    createdAt: deps.now().toISOString(),
-  });
+  };
+  const cacheKey = caseCacheKey(appName, day, articleId);
+  if (kind === "case_question") {
+    // 同じ記事では同じ問題を出す。「別の問題」(fresh: true)のときだけ作り直す
+    const cached = payload.fresh === true ? null : await env.NOOK_BUCKET.get(cacheKey);
+    if (cached !== null) {
+      return Response.json({ case: JSON.parse(await cached.text()) });
+    }
+    const caseQuestion = await generateCase(llm);
+    await env.NOOK_BUCKET.put(cacheKey, JSON.stringify(caseQuestion), {
+      httpMetadata: { contentType: "application/json" },
+    });
+    return Response.json({ case: caseQuestion });
+  }
+  let session: PracticeSession;
+  if (kind === "case_review") {
+    const cached = await env.NOOK_BUCKET.get(cacheKey);
+    if (cached === null) {
+      throw new HttpError(409, "先に問題を出してください");
+    }
+    const caseQuestion = JSON.parse(await cached.text()) as CaseQuestion;
+    const output = await reviewCaseAnswer({ ...llm, caseQuestion, answer });
+    session = await saveSession(env.DB, {
+      kind: "case",
+      app: appName,
+      day,
+      articleId,
+      input: { ...caseQuestion, answer },
+      output,
+      createdAt: deps.now().toISOString(),
+    });
+  } else {
+    const output = await reviewSummary({ ...llm, summary });
+    session = await saveSession(env.DB, {
+      kind: "review",
+      app: appName,
+      day,
+      articleId,
+      input: { summary },
+      output,
+      createdAt: deps.now().toISOString(),
+    });
+  }
   return Response.json({ session: sessionToState(session) });
 }
 

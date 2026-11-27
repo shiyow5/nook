@@ -101,3 +101,64 @@ describe("summary review (#19)", () => {
     expect(html).toMatch(/<script defer src="\/static\/practice.js\?v=[^"]+"><\/script>/);
   });
 });
+
+describe("case study (#20)", () => {
+  const CASE = { situation: "社内の RAG で回答が遅い。", question: "まず何を確かめますか。", hints: ["量子化", "評価の仕方"] };
+  const CASE_REVIEW = { good_points: ["測り方を疑う点が良い。"], risks: ["本番のクエリの分布"], model_answer: "- 1 件ずつ測る" };
+
+  it("asks the same question until a fresh one is requested", async () => {
+    const id = await articleId();
+    const { deps, calls } = buildDeps(gemini(CASE));
+    const ask = (fresh: boolean) =>
+      handleRequest(post({ kind: "case_question", date: DAY, article_id: id, fresh }), testEnv(), deps);
+
+    const first = (await (await ask(false)).json()) as { case: unknown };
+    const second = (await (await ask(false)).json()) as { case: unknown };
+    await ask(true);
+
+    expect(first.case).toEqual(CASE);
+    expect(second.case).toEqual(CASE);
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(calls[0].body).contents[0].parts[0].text).toContain("KV キャッシュを量子化");
+  });
+
+  it("reviews the answer against the stored question and saves it", async () => {
+    const id = await articleId();
+    await handleRequest(post({ kind: "case_question", date: DAY, article_id: id, fresh: true }), testEnv(), buildDeps(gemini(CASE)).deps);
+    const { deps, calls } = buildDeps(gemini(CASE_REVIEW));
+
+    const response = await handleRequest(
+      post({ kind: "case_review", date: DAY, article_id: id, answer: "まずバッチと 1 件ずつの両方で測り直す。", question: "偽の問い" }),
+      testEnv(),
+      deps,
+    );
+
+    const { session } = (await response.json()) as { session: { kind: string; input: { question: string }; output: unknown } };
+    expect(session.kind).toBe("case");
+    expect(session.input.question).toBe(CASE.question);
+    expect(session.output).toEqual(CASE_REVIEW);
+    const prompt = JSON.parse(calls[0].body).contents[0].parts[0].text as string;
+    expect(prompt).toContain("まず何を確かめますか。");
+    expect(prompt).not.toContain("偽の問い");
+  });
+
+  it("refuses to review before a question exists and rejects short answers", async () => {
+    await env.NOOK_BUCKET.put(`jp_tech_news/2026-11-23.md`, MARKDOWN);
+    const response = await handleRequest(
+      new Request(`${ORIGIN}/api/markdown/jp_tech_news?date=2026-11-23`),
+      testEnv(),
+      buildDeps(() => new Response("unused")).deps,
+    );
+    const id = ((await response.json()) as { articles: { article_id: string }[] }).articles[0].article_id;
+    const { deps } = buildDeps(gemini(CASE_REVIEW));
+
+    const noQuestion = await handleRequest(
+      post({ kind: "case_review", date: "2026-11-23", article_id: id, answer: "十分に長い回答を書きました。" }),
+      testEnv(),
+      deps,
+    );
+    const short = await handleRequest(post({ kind: "case_review", date: "2026-11-23", article_id: id, answer: "短い" }), testEnv(), deps);
+
+    expect([noQuestion.status, short.status]).toEqual([409, 400]);
+  });
+});
