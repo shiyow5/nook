@@ -11,8 +11,9 @@ import {
 } from "./content";
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
 import { dispatchCollectorWorkflow } from "./github";
-import { buildHomeData, renderHomeHtml } from "./home";
-import { renderIndexHtml } from "./page";
+import { buildHomeData, HOME_SHELL, renderHomeBody } from "./home";
+import { INDEX_SHELL, renderIndexBody } from "./page";
+import { loadingMessage, renderShellHead, streamPage } from "./shell";
 import { renderMarkdownHtml } from "./render";
 import { loadSettingsState, saveSettings } from "./settings";
 import { generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
@@ -65,7 +66,7 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
     if (url.searchParams.has("tab")) {
       return Response.redirect(new URL(`/read${url.search}`, url).toString(), 302);
     }
-    return renderHome(env, resolveDay(url.searchParams.get("date"), deps.now()), todayInJapan(deps.now()));
+    return renderHome(env, resolveDay(url.searchParams.get("date"), deps.now()), todayInJapan(deps.now()), url);
   }
   if (method === "GET" && path === "/read") {
     return renderIndex(
@@ -73,6 +74,7 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
       resolveDay(url.searchParams.get("date"), deps.now()),
       url.searchParams.get("tab"),
       todayInJapan(deps.now()),
+      url,
     );
   }
 
@@ -125,20 +127,25 @@ function ensureSameOrigin(request: Request, url: URL): void {
   }
 }
 
-async function renderIndex(env: NookEnv, day: string, requestedApp: string | null, today: string): Promise<Response> {
-  const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
-  const html = renderIndexHtml(page, buildInitialRender(page, requestedApp), assetVersion(env), today);
-  return new Response(html, {
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-  });
+function renderIndex(env: NookEnv, day: string, requestedApp: string | null, today: string, url: URL): Response {
+  const head = renderShellHead({ ...INDEX_SHELL, version: assetVersion(env), loadingMessage: loadingMessage(day, today) });
+  return streamPage(
+    head,
+    async () => {
+      const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
+      return renderIndexBody(page, buildInitialRender(page, requestedApp), today);
+    },
+    `${url.pathname}${url.search}`,
+  );
 }
 
-async function renderHome(env: NookEnv, day: string, today: string): Promise<Response> {
-  const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
-  const html = renderHomeHtml(buildHomeData(page, today), assetVersion(env));
-  return new Response(html, {
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-  });
+function renderHome(env: NookEnv, day: string, today: string, url: URL): Response {
+  const head = renderShellHead({ ...HOME_SHELL, version: assetVersion(env), loadingMessage: loadingMessage(day, today) });
+  return streamPage(
+    head,
+    async () => renderHomeBody(buildHomeData(await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day), today)),
+    `${url.pathname}${url.search}`,
+  );
 }
 
 async function renderSettings(env: NookEnv): Promise<Response> {

@@ -142,24 +142,13 @@ export function homeToState(data: HomeData) {
   };
 }
 
-export function renderHomeHtml(data: HomeData, assetVersion: string): string {
-  const version = encodeURIComponent(assetVersion);
+export const HOME_SHELL = { scripts: ["menu.js", "home.js"], bodyAttributes: 'class="home-page"' };
+
+/** ホームの本体(<body> の中身から </html> まで)。外枠は shell.ts が先に送る。 */
+export function renderHomeBody(data: HomeData): string {
   const { date, today } = data;
   const tabInfos = data.tabs.map((tab) => ({ ...tab, isActive: false }));
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>nook</title>
-  <link rel="icon" type="image/svg+xml" href="${ICON_URL}/svg?seed=nook">
-  <link rel="apple-touch-icon" href="${ICON_URL}/png?seed=nook&amp;size=180">
-  <link rel="stylesheet" href="/static/app.css?v=${version}">
-  <script defer src="/static/menu.js?v=${version}"></script>
-  <script defer src="/static/home.js?v=${version}"></script>
-</head>
-<body class="home-page">
-  <header class="topbar">
+  return `  <header class="topbar">
     <button id="menu-button" class="icon-button" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="tab-drawer">${icon("menu")}</button>
     <a class="brand" href="${escapeHtml(homePath(date, today))}">
       <img src="${ICON_URL}/svg?seed=nook" alt="" width="26" height="26">

@@ -483,3 +483,46 @@ describe("home tab cards", () => {
     expect(order.slice(0, 3)).toEqual(["jp_tech_news", "tech_news", "arxiv_news"]);
   });
 });
+
+describe("loading screen (#55)", () => {
+  it("sends the loading splash before the page body and hides it once the body arrives", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps)).text();
+
+    const splash = html.indexOf('id="boot-splash"');
+    const done = html.indexOf("<style>#boot-splash{display:none}</style>");
+    expect(splash).toBeGreaterThan(html.indexOf("<body"));
+    expect(done).toBeGreaterThan(splash);
+    expect(html.indexOf('<header class="topbar">')).toBeGreaterThan(done);
+    expect(html).toContain("今日の記事を集めています");
+  });
+
+  it("names the day when loading a past date", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request("/?date=2026-11-20"), testEnv(), deps)).text();
+
+    expect(html).toContain("11月20日の記事を集めています");
+  });
+
+  it("shows the reason and a reload link when R2 fails", async () => {
+    const { deps } = buildDeps();
+    const brokenEnv = {
+      ...testEnv(),
+      NOOK_BUCKET: {
+        get: async () => {
+          throw new Error("R2 is down");
+        },
+      } as unknown as R2Bucket,
+    };
+
+    const response = await handleRequest(request(`/read?date=${DAY}&tab=tech_news`), brokenEnv, deps);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain("記事を読み込めませんでした");
+    expect(html).toContain(`href="/read?date=${DAY}&amp;tab=tech_news"`);
+    expect(html).not.toContain("R2 is down");
+  });
+});

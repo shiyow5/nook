@@ -7,30 +7,17 @@ import { escapeHtml } from "./render";
 import { ICON_URL, icon } from "./icons";
 import { homePath, renderMenu } from "./menu";
 
-export function renderIndexHtml(
-  page: ViewerPage,
-  initial: InitialRender,
-  assetVersion: string,
-  today: string = page.date,
-): string {
-  const version = encodeURIComponent(assetVersion);
+export const INDEX_SHELL = {
+  scripts: ["menu.js", "app.js"],
+  extraStyles: ["https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"],
+  bodyAttributes: 'data-view="list"',
+};
+
+/** 詳細画面の本体(<body> の中身から </html> まで)。外枠は shell.ts が先に送る。 */
+export function renderIndexBody(page: ViewerPage, initial: InitialRender, today: string = page.date): string {
   const currentTab = initial.tabs.find((tab) => tab.isActive) ?? null;
   const state = pageToState(page, { currentApp: initial.currentApp, today });
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>nook</title>
-  <link rel="icon" type="image/svg+xml" href="${ICON_URL}/svg?seed=nook">
-  <link rel="apple-touch-icon" href="${ICON_URL}/png?seed=nook&amp;size=180">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
-  <link rel="stylesheet" href="/static/app.css?v=${version}">
-  <script defer src="/static/menu.js?v=${version}"></script>
-  <script defer src="/static/app.js?v=${version}"></script>
-</head>
-<body data-view="list">
-  <header class="topbar">
+  return `  <header class="topbar">
     <button id="menu-button" class="icon-button" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="tab-drawer">${icon("menu")}</button>
     <a class="brand" href="${escapeHtml(homePath(page.date, today))}">
       <img src="${ICON_URL}/svg?seed=nook" alt="" width="26" height="26">
