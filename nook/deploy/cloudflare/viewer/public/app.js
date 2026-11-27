@@ -521,21 +521,24 @@ function startViewer() {
     el.quizArea.replaceChildren(...nodes);
   }
 
-  /** スマホのシートを、つまみと見出しを掴んで上下に動かせるようにする。 */
+  /**
+   * スマホのシートを上下に動かせるようにする。
+   * つまみと見出しはそのまま掴んで動かす。中身の部分は、まず中身をスクロールし、
+   * 上端(下へ引くとき)か下端(上へ引くとき)に着いてからさらに指を動かした分だけシートを動かす。
+   */
   function enableSheetDrag(panel, close) {
     let drag = null;
-    const heightFor = (event) =>
-      Math.max(0, Math.min(window.innerHeight * 0.95, drag.startHeight - (event.clientY - drag.startY)));
-    const onMove = (event) => {
-      if (drag) {
-        panel.style.height = `${heightFor(event)}px`;
-      }
+    const maxHeight = () => window.innerHeight * 0.95;
+    const heightAt = (y) => Math.max(0, Math.min(maxHeight(), drag.startHeight - (y - drag.startY)));
+    const begin = (y) => {
+      drag = { startY: y, startHeight: panel.getBoundingClientRect().height };
+      panel.classList.add("dragging");
     };
-    const onEnd = (event) => {
-      if (!drag) {
-        return;
-      }
-      const height = heightFor(event);
+    const move = (y) => {
+      panel.style.height = `${heightAt(y)}px`;
+    };
+    const end = (y) => {
+      const height = heightAt(y);
       const shouldClose = height < drag.startHeight * SHEET_CLOSE_RATIO;
       drag = null;
       panel.classList.remove("dragging");
@@ -546,23 +549,84 @@ function startViewer() {
       }
       panel.classList.toggle("sheet-full", height > window.innerHeight * SHEET_FULL_RATIO);
     };
+
+    // つまみと見出し: マウスでも指でも、掴んだらすぐ動かす
     panel.querySelectorAll(".sheet-grip, .study-head").forEach((handle) => {
       handle.addEventListener("pointerdown", (event) => {
         if (!narrow.matches || event.target.closest("button")) {
           return;
         }
-        drag = { startY: event.clientY, startHeight: panel.getBoundingClientRect().height };
-        panel.classList.add("dragging");
+        begin(event.clientY);
         try {
           handle.setPointerCapture(event.pointerId);
         } catch {
           // キャプチャできなくても、つまみの上で動かす分には追従する
         }
       });
-      handle.addEventListener("pointermove", onMove);
-      handle.addEventListener("pointerup", onEnd);
-      handle.addEventListener("pointercancel", onEnd);
+      handle.addEventListener("pointermove", (event) => {
+        if (drag) {
+          move(event.clientY);
+        }
+      });
+      const finish = (event) => {
+        if (drag) {
+          end(event.clientY);
+        }
+      };
+      handle.addEventListener("pointerup", finish);
+      handle.addEventListener("pointercancel", finish);
     });
+
+    // 中身の部分: スクロールしきってから続けて引いた分だけシートを動かす
+    let lastY = null;
+    let touchDrag = false;
+    panel.addEventListener(
+      "touchstart",
+      (event) => {
+        const target = event.target;
+        if (!narrow.matches || target.closest(".sheet-grip, .study-head, textarea, input")) {
+          lastY = null;
+          return;
+        }
+        lastY = event.touches[0].clientY;
+        touchDrag = false;
+      },
+      { passive: true },
+    );
+    panel.addEventListener(
+      "touchmove",
+      (event) => {
+        if (lastY === null) {
+          return;
+        }
+        const y = event.touches[0].clientY;
+        const delta = y - lastY;
+        lastY = y;
+        if (!touchDrag) {
+          const atTop = panel.scrollTop <= 0;
+          const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
+          const canGrow = panel.getBoundingClientRect().height < maxHeight() - 1;
+          if ((delta > 0 && atTop) || (delta < 0 && atBottom && canGrow)) {
+            touchDrag = true;
+            begin(y);
+          } else {
+            return;
+          }
+        }
+        event.preventDefault();
+        move(y);
+      },
+      { passive: false },
+    );
+    const finishTouch = (event) => {
+      if (touchDrag && drag) {
+        end(event.changedTouches[0]?.clientY ?? lastY);
+      }
+      touchDrag = false;
+      lastY = null;
+    };
+    panel.addEventListener("touchend", finishTouch);
+    panel.addEventListener("touchcancel", finishTouch);
   }
 
   function renderStudy() {
