@@ -95,6 +95,6 @@ describe("favorites (#14)", () => {
     const html = await (await handleRequest(request("/"), env, deps)).text();
 
     expect(html).toContain('<a class="menu-item" href="/bookmarks">');
-    expect(html).not.toMatch(/ブックマーク<\/span><span class="menu-badge">準備中/);
+    expect(html).not.toContain("準備中");
   });
 });

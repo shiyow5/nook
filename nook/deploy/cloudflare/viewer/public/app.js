@@ -345,6 +345,23 @@ function startViewer() {
     }
   }
 
+  // 閲覧履歴(#73)。renderReader は保存ボタンなどでも呼ばれるので、記事が変わったときだけ送る
+  let lastRecordedKey = null;
+  function recordHistory(article) {
+    const key = `${runtime.currentApp}|${runtime.date}|${article.article_id}`;
+    if (key === lastRecordedKey) {
+      return;
+    }
+    lastRecordedKey = key;
+    fetch(`/api/history/${encodeURIComponent(runtime.currentApp)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ article_id: article.article_id, date: runtime.date }),
+    }).catch(() => {
+      // 履歴に残らないだけで、読むのには困らない
+    });
+  }
+
   function renderList() {
     const articles = articlesOf();
     const visible = filterArticles(articles, runtime.filter);
@@ -404,6 +421,7 @@ function startViewer() {
     }
     const index = selectedIndex();
     rememberLastRead(article, index);
+    recordHistory(article);
     const view = document.createElement("article");
     view.className = "article-view";
     view.dataset.articleId = article.article_id;

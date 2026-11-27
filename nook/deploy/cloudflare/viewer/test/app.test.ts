@@ -433,15 +433,14 @@ describe("home screen (#56)", () => {
     expect(state.articles.find((article: { label: string }) => article.label === "国内")).toMatchObject({ app_name: "jp_tech_news", label: "国内", title: "国内の一本目" });
   });
 
-  it("uses the new menu with history marked as 準備中", async () => {
+  it("uses the new menu with every screen linked", async () => {
     const { deps } = buildDeps();
 
     const home = await (await handleRequest(request(`/?date=${homeDay}`), testEnv(), deps)).text();
     const read = await (await handleRequest(request(`/read?date=${homeDay}&tab=tech_news`), testEnv(), deps)).text();
 
-    for (const label of ["履歴"]) {
-      expect(home).toMatch(new RegExp(`aria-disabled="true">.*${label}.*準備中`));
-    }
+    expect(home).not.toContain('aria-disabled="true"');
+    expect(home).toContain('<a class="menu-item" href="/history">');
     expect(home).toMatch(/class="menu-item" href="\/\?date=2026-11-20" aria-current="page"/);
     expect(home).not.toMatch(/class="tab-item"[^>]*aria-current/);
     expect(read).toMatch(/class="tab-item" href="\/read\?tab=tech_news&amp;date=2026-11-20" data-app-name="tech_news" aria-current="page"/);

@@ -16,6 +16,8 @@ import { computeStats, countByDay, parseMonth, sessionsOnDay } from "./calendar"
 import { CALENDAR_SHELL, renderCalendarBody } from "./calendarPage";
 import { BOOKMARKS_SHELL, renderBookmarksBody, renderBookmarkViewBody } from "./bookmarksPage";
 import { addFavorite, favoriteIdsForDay, getFavorite, listFavorites, removeFavorite } from "./favorites";
+import { clearHistory, listHistory, recordView, removeHistoryEntry } from "./history";
+import { HISTORY_SHELL, renderHistoryBody } from "./historyPage";
 import { dispatchCollectorWorkflow } from "./github";
 import {
   addTerm,
@@ -129,6 +131,9 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   if (method === "GET" && path === "/bookmarks/view") {
     return renderBookmarkView(env, url, deps);
   }
+  if (method === "GET" && path === "/history") {
+    return renderHistory(env, todayInJapan(deps.now()), url);
+  }
 
   const markdownMatch = /^\/api\/markdown\/([^/]+)$/.exec(path);
   if (method === "GET" && markdownMatch) {
@@ -159,6 +164,14 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   const favoriteMatch = /^\/api\/favorites\/([^/]+)$/.exec(path);
   if ((method === "PUT" || method === "DELETE") && favoriteMatch) {
     return updateFavorite(env, method, decodePathParam(favoriteMatch[1]), request, deps);
+  }
+  if (method === "DELETE" && path === "/api/history") {
+    await clearHistory(env.DB);
+    return Response.json({ deleted: true });
+  }
+  const historyMatch = /^\/api\/history\/([^/]+)$/.exec(path);
+  if ((method === "POST" || method === "DELETE") && historyMatch) {
+    return updateHistory(env, method, decodePathParam(historyMatch[1]), request, deps);
   }
   const chatMatch = /^\/chat\/([^/]+)$/.exec(path);
   if (method === "POST" && chatMatch) {
@@ -414,14 +427,17 @@ async function renderBookmarkView(env: NookEnv, url: URL, deps: AppDeps): Promis
   );
 }
 
-async function updateFavorite(
-  env: NookEnv,
-  method: "PUT" | "DELETE",
-  appName: string,
-  request: Request,
-  deps: AppDeps,
-): Promise<Response> {
-  ensureViewerService(viewerServiceNames(env), appName);
+function renderHistory(env: NookEnv, today: string, url: URL): Response {
+  const head = renderShellHead({ ...HISTORY_SHELL, version: assetVersion(env), loadingMessage: "履歴を読み込んでいます" });
+  return streamPage(
+    head,
+    async () => renderHistoryBody({ entries: await listHistory(env.DB), appNames: viewerServiceNames(env), today }),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+/** お気に入りと閲覧履歴の API が共通で受け取る、記事を指す本文 { article_id, date }。 */
+async function readArticleTarget(request: Request, deps: AppDeps): Promise<{ articleId: string; day: string }> {
   let payload: Record<string, unknown>;
   try {
     payload = ((await request.json()) ?? {}) as Record<string, unknown>;
@@ -432,7 +448,35 @@ async function updateFavorite(
   if (typeof articleId !== "string" || !articleId || typeof date !== "string") {
     throw new HttpError(400, "article_id と date を指定してください");
   }
-  const day = resolveDay(date, deps.now());
+  return { articleId, day: resolveDay(date, deps.now()) };
+}
+
+async function updateHistory(
+  env: NookEnv,
+  method: "POST" | "DELETE",
+  appName: string,
+  request: Request,
+  deps: AppDeps,
+): Promise<Response> {
+  ensureViewerService(viewerServiceNames(env), appName);
+  const { articleId, day } = await readArticleTarget(request, deps);
+  if (method === "DELETE") {
+    await removeHistoryEntry(env.DB, appName, day, articleId);
+    return Response.json({ deleted: true });
+  }
+  await recordView({ db: env.DB, bucket: env.NOOK_BUCKET, app: appName, day, articleId, now: deps.now() });
+  return Response.json({ recorded: true });
+}
+
+async function updateFavorite(
+  env: NookEnv,
+  method: "PUT" | "DELETE",
+  appName: string,
+  request: Request,
+  deps: AppDeps,
+): Promise<Response> {
+  ensureViewerService(viewerServiceNames(env), appName);
+  const { articleId, day } = await readArticleTarget(request, deps);
   if (method === "DELETE") {
     await removeFavorite(env.DB, appName, day, articleId);
     return Response.json({ saved: false });

@@ -13,6 +13,7 @@ describe("D1 study tables (#13)", () => {
       "archive_days",
       "favorites",
       "notes",
+      "reading_history",
       "terms",
     ]);
   });
