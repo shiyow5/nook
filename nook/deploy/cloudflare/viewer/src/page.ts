@@ -15,6 +15,7 @@ const ICONS = {
   panelOpen: '<rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M9 4v16M13 10l2 2-2 2"></path>',
   settings:
     '<circle cx="12" cy="12" r="3"></circle><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"></path>',
   book: '<path d="M4 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4zM20 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"></path>',
 };
 
@@ -41,8 +42,6 @@ export function renderIndexHtml(
   <link rel="apple-touch-icon" href="${ICON_URL}/png?seed=nook&amp;size=180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
   <link rel="stylesheet" href="/static/app.css?v=${version}">
-  <script defer src="https://cdn.jsdelivr.net/npm/marked@18.2.0/marked.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
   <script defer src="/static/app.js?v=${version}"></script>
 </head>
 <body data-view="list">
@@ -115,23 +114,29 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length)}
         <div id="quiz-area" class="quiz-area" aria-live="polite"></div>
       </section>
       <button id="intro-button" class="text-button study-wide" type="button">入門の解説を読む</button>
-      <section class="study-chat" aria-labelledby="chat-title">
-        <h3 id="chat-title" class="study-heading">この記事について AI に聞く</h3>
-        <div class="study-prompts" role="group" aria-label="よく使う質問">
-          <button class="chip" type="button" data-prompt="この記事の要点を 3 行でまとめてください。">要点を 3 行で</button>
-          <button class="chip" type="button" data-prompt="この記事を理解するための前提知識を、入門者向けに教えてください。">前提知識を教えて</button>
-        </div>
-        <div id="chat-log" class="chat-log" aria-live="polite"></div>
-        <form id="chat-form" class="chat-form">
-          <label for="chat-input" class="visually-hidden">質問</label>
-          <textarea id="chat-input" rows="3" placeholder="例: この手法は何が新しい?(Enter で送信、Shift+Enter で改行)"></textarea>
-          <button id="chat-submit" class="primary-button" type="submit">送信</button>
-        </form>
-      </section>
+    </aside>
+
+    <aside id="chat-panel" class="study-panel chat-panel" aria-labelledby="chat-title" hidden>
+      <div class="study-head">
+        <h2 id="chat-title">AI に聞く</h2>
+        <button id="chat-close" class="icon-button" type="button" aria-label="AI チャットを閉じる">×</button>
+      </div>
+      <p id="chat-article" class="study-article"></p>
+      <div class="study-prompts" role="group" aria-label="よく使う質問">
+        <button class="chip" type="button" data-prompt="この記事の要点を 3 行でまとめてください。">要点を 3 行で</button>
+        <button class="chip" type="button" data-prompt="この記事を理解するための前提知識を、入門者向けに教えてください。">前提知識を教えて</button>
+      </div>
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <form id="chat-form" class="chat-form">
+        <label for="chat-input" class="visually-hidden">質問</label>
+        <textarea id="chat-input" rows="3" placeholder="この記事について質問(Enter で送信、Shift+Enter で改行)"></textarea>
+        <button id="chat-submit" class="primary-button" type="submit">送信</button>
+      </form>
     </aside>
   </div>
 
   <div id="study-backdrop" class="study-backdrop" hidden></div>
+  <button id="chat-fab" class="study-fab chat-fab" type="button" aria-label="AI チャットを開く" aria-controls="chat-panel" aria-expanded="false" title="AI に聞く">${icon("chat", 24)}</button>
   <button id="study-fab" class="study-fab" type="button" aria-label="今日の学びを開く" aria-controls="study-panel" aria-expanded="false" title="今日の学び">${icon("book", 26)}</button>
 
   <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>

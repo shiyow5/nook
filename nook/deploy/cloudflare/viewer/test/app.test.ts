@@ -86,6 +86,9 @@ describe("GET /", () => {
     expect(html).toContain('href="https://example.com/first" target="_blank" rel="noopener noreferrer"');
     expect(html).toContain('<span id="article-position">1 / 2</span>');
     expect(html).toContain('id="study-fab"');
+    expect(html).toContain('id="chat-fab"');
+    expect(html).toContain('id="chat-panel"');
+    expect(html).not.toContain("marked.min.js");
     expect(html).toContain('<body data-view="list">');
     expect(html).toContain('id="study-backdrop" class="study-backdrop" hidden');
     expect(html).not.toContain('id="toc-list"');
@@ -236,7 +239,7 @@ describe("POST /chat/:app", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ response: "回答です" });
+    expect(await response.json()).toEqual({ response: "回答です", html: "<p>回答です</p>\n" });
     const geminiCall = calls.find((call) => call.url.startsWith("https://generativelanguage.googleapis.com/"));
     expect(geminiCall?.url).toBe(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
@@ -250,6 +253,34 @@ describe("POST /chat/:app", () => {
     expect(prompt).not.toContain("# Second Article");
     expect(prompt).toContain("First body text");
     expect(prompt).toContain("要点は?");
+  });
+
+  it("returns the answer as sanitized HTML so Markdown is rendered", async () => {
+    const answer = "## 要点\n\n- **KV** キャッシュ\n\n<script>alert(1)</script>\n\n[危険](javascript:alert(1)) と [安全](https://example.com)";
+    const { deps } = buildDeps({
+      responses: {
+        "https://generativelanguage.googleapis.com/": Response.json({ candidates: [{ content: { parts: [{ text: answer }] } }] }),
+      },
+    });
+    const markdown = (await (await handleRequest(request(`/api/markdown/tech_news?date=${DAY}`), testEnv(), deps)).json()) as {
+      articles: { article_id: string }[];
+    };
+
+    const response = await handleRequest(
+      request("/chat/tech_news", {
+        method: "POST",
+        body: JSON.stringify({ article_id: markdown.articles[1].article_id, date: DAY, chat_history: "なし", message: "q" }),
+      }),
+      testEnv(),
+      deps,
+    );
+    const { html } = (await response.json()) as { html: string };
+
+    expect(html).toContain("<h2>要点</h2>");
+    expect(html).toContain("<strong>KV</strong>");
+    expect(html).not.toContain("<script");
+    expect(html).not.toMatch(/href="javascript:/i);
+    expect(html).toContain('<a href="https://example.com" target="_blank" rel="noopener noreferrer">安全</a>');
   });
 
   it("returns 404 for an unknown article and 502 when Gemini fails", async () => {
