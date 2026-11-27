@@ -202,15 +202,57 @@ button { font: inherit; color: inherit; }
 .markdown-content .md-h3 { margin: 1.2em 0 0.4em; font-size: 17px; color: var(--text); }
 .chat-message.assistant.markdown-content, .chat-message .markdown-content { font-size: 14px; line-height: 1.75; }
 
-/* 狭い画面の調整は #28 で詰める。ここでは崩れないことだけを保証する */
+/* 学びパネルの背景(スマホでシートとして出すときだけ見せる) */
+.study-backdrop { display: none; }
+.back-button { display: none; }
+
 @media (max-width: 1100px) {
-  .study-panel { position: fixed; top: var(--topbar-h); right: 0; bottom: 0; z-index: 26; height: auto; width: min(380px, 92vw); box-shadow: -8px 0 32px rgba(24, 24, 27, 0.16); }
+  .study-panel {
+    position: fixed; top: var(--topbar-h); right: 0; bottom: 0; z-index: 26; height: auto;
+    width: min(380px, 92vw); box-shadow: -8px 0 32px rgba(24, 24, 27, 0.16);
+  }
 }
+
+/* スマホ(#28): 一覧と本文を切り替え、学びパネルは下から出すシートにする */
 @media (max-width: 760px) {
-  .topbar { padding: 10px 12px; gap: 8px; }
-  .filter-field { flex-basis: 100%; margin-left: 0; order: 5; }
-  .layout { flex-direction: column; }
-  .list-panel, .list-rail { position: static; height: auto; flex-basis: auto; border-right: 0; border-bottom: 1px solid var(--line); }
-  .reader { padding: 20px 16px 96px; }
-  .study-fab { right: 16px; bottom: 16px; }
+  :root { --topbar-h: 0px; }
+  .topbar { position: static; padding: 8px 12px; gap: 8px; }
+  .brand { margin-right: auto; gap: 6px; }
+  .brand-name, .brand-sep { display: none; }
+  .brand-tab { font-size: 16px; font-weight: 700; }
+  .date-nav { gap: 4px; }
+  .date-field { padding: 0 10px; }
+  .date-field svg { display: none; }
+  .date-label { font-size: 14px; }
+  .date-nav .icon-button { width: 40px; }
+  .filter-field { flex-basis: 100%; margin-left: 0; order: 5; height: 40px; }
+  body[data-view="read"] .filter-field { display: none; }
+
+  .layout { display: block; min-height: 0; }
+  .list-panel { position: static; height: auto; overflow: visible; border-right: 0; background: var(--bg); }
+  .list-head { padding: 12px 12px 4px 16px; }
+  #list-close, .list-rail { display: none !important; }
+  .article-list { padding: 4px 12px 96px; gap: 8px; }
+  .article-row { padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); min-height: 48px; }
+  .article-row[aria-current="true"] { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
+  .row-title { font-size: 15px; }
+
+  body[data-view="list"] .reader { display: none; }
+  body[data-view="read"] .list-panel { display: none; }
+  .reader { padding: 12px 16px 112px; background: var(--surface); min-height: 100vh; }
+  .back-button { display: inline-flex; }
+  .article-meta { gap: 8px; }
+  .markdown-content { font-size: 16px; }
+  .markdown-content .md-h1 { font-size: 22px; }
+  .article-pager .text-button, .article-pager .primary-button { min-height: 48px; flex: 1; justify-content: center; }
+
+  .study-fab { right: 16px; bottom: 20px; }
+  body[data-view="list"] .study-fab { display: none; }
+  .study-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(24, 24, 27, 0.36); }
+  .study-panel {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82vh;
+    border-left: 0; border-radius: 20px 20px 0 0; padding: 16px 16px 24px;
+    box-shadow: 0 -8px 32px rgba(24, 24, 27, 0.16);
+  }
+  .chat-form textarea { font-size: 16px; }
 }

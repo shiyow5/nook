@@ -4,6 +4,8 @@
 const STORAGE_KEYS = { listOpen: "nook.listOpen", studyOpen: "nook.studyOpen" };
 const POLL_INTERVAL_MS = 5000;
 const POLL_ATTEMPTS = 24;
+// これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
+const NARROW_QUERY = "(max-width: 760px)";
 
 function shiftDay(day, delta) {
   const [year, month, date] = day.split("-").map(Number);
@@ -97,7 +99,9 @@ function startViewer() {
     chats: {},
     pendingChats: new Set(),
     pollTimerId: null,
+    view: "list",
   };
+  const narrow = window.matchMedia(NARROW_QUERY);
 
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -130,6 +134,7 @@ function startViewer() {
     studyClose: $("study-close"),
     studyArticle: $("study-article"),
     studyFab: $("study-fab"),
+    studyBackdrop: $("study-backdrop"),
     chatLog: $("chat-log"),
     chatForm: $("chat-form"),
     chatInput: $("chat-input"),
@@ -300,6 +305,12 @@ function startViewer() {
 
     const meta = document.createElement("div");
     meta.className = "article-meta";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "text-button back-button";
+    back.textContent = "‹ 一覧";
+    back.addEventListener("click", () => setView("list"));
+    meta.append(back);
     const chip = document.createElement("span");
     chip.className = "source-chip";
     chip.textContent = article.source || "";
@@ -353,6 +364,7 @@ function startViewer() {
 
   function renderStudy() {
     el.studyPanel.hidden = !runtime.studyOpen;
+    el.studyBackdrop.hidden = !runtime.studyOpen;
     el.studyFab.hidden = runtime.studyOpen;
     el.studyFab.setAttribute("aria-expanded", String(runtime.studyOpen));
     const article = currentArticle();
@@ -386,7 +398,19 @@ function startViewer() {
     }
   }
 
+  function setView(view) {
+    runtime.view = view;
+    document.body.dataset.view = view;
+    if (view === "list") {
+      const row = el.articleList.querySelector('[aria-current="true"]');
+      row?.scrollIntoView({ block: "center" });
+    } else {
+      window.scrollTo({ top: 0 });
+    }
+  }
+
   function render() {
+    document.body.dataset.view = runtime.view;
     renderTabs();
     renderList();
     renderReader();
@@ -401,6 +425,7 @@ function startViewer() {
     runtime.currentApp = appName;
     runtime.filter = "";
     el.filterInput.value = "";
+    runtime.view = "list";
     setStatus("");
     render();
     window.scrollTo({ top: 0 });
@@ -416,6 +441,10 @@ function startViewer() {
     renderReader();
     renderStudy();
     window.scrollTo({ top: 0 });
+    if (narrow.matches) {
+      setView("read");
+      return;
+    }
     const row = el.articleList.querySelector(`[data-index="${index}"]`);
     row?.scrollIntoView({ block: "nearest" });
   }
@@ -429,7 +458,10 @@ function startViewer() {
 
   function setStudyOpen(open) {
     runtime.studyOpen = open;
-    storeFlag(STORAGE_KEYS.studyOpen, open);
+    // スマホでは画面を覆うシートなので、次に開いたときに勝手に出ないよう覚えない
+    if (!narrow.matches) {
+      storeFlag(STORAGE_KEYS.studyOpen, open);
+    }
     renderStudy();
     (open ? el.chatInput : el.studyFab).focus();
   }
@@ -582,6 +614,7 @@ function startViewer() {
   el.listOpen.addEventListener("click", () => setListOpen(true));
   el.studyFab.addEventListener("click", () => setStudyOpen(true));
   el.studyClose.addEventListener("click", () => setStudyOpen(false));
+  el.studyBackdrop.addEventListener("click", () => setStudyOpen(false));
   el.retryButton.addEventListener("click", retryCurrentApp);
   el.filterInput.addEventListener("input", () => {
     runtime.filter = el.filterInput.value;
@@ -621,7 +654,11 @@ function startViewer() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closeDrawer();
+      if (!el.drawer.hidden) {
+        closeDrawer();
+      } else if (runtime.studyOpen && narrow.matches) {
+        setStudyOpen(false);
+      }
       return;
     }
     if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
@@ -634,6 +671,9 @@ function startViewer() {
     }
   });
 
+  if (narrow.matches) {
+    runtime.studyOpen = false;
+  }
   render();
 }
 

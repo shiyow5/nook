@@ -86,6 +86,8 @@ describe("GET /", () => {
     expect(html).toContain('href="https://example.com/first" target="_blank" rel="noopener noreferrer"');
     expect(html).toContain('<span id="article-position">1 / 2</span>');
     expect(html).toContain('id="study-fab"');
+    expect(html).toContain('<body data-view="list">');
+    expect(html).toContain('id="study-backdrop" class="study-backdrop" hidden');
     expect(html).not.toContain('id="toc-list"');
   });
 
