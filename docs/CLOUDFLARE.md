@@ -76,6 +76,13 @@ gh variable set NOOK_ENABLED_COLLECTORS \
 1. `wrangler.jsonc` の `GITHUB_REPOSITORY` を `<GitHub ユーザー名>/<リポジトリ名>` に書き換えます。
 2. secrets を登録します。`GITHUB_TOKEN` は、対象リポジトリだけに「Actions: Read and write」を許可した fine-grained personal access token です。
 
+3. 学習データ(お気に入り・メモ・用語辞書)用の D1 を作り、表示された `database_id` を `wrangler.jsonc` の `d1_databases` に書きます。テーブルは `migrations/` の SQL で作ります。
+
+   ```bash
+   npx wrangler d1 create nook-study
+   npx wrangler d1 migrations apply nook-study --remote
+   ```
+
    ```bash
    npx wrangler secret put GOOGLE_API_KEY
    npx wrangler secret put GITHUB_TOKEN
@@ -114,7 +121,7 @@ gh run watch
    gh variable set CLOUDFLARE_ACCOUNT_ID    # wrangler whoami で出るアカウント ID
    ```
 
-`GOOGLE_API_KEY` と `GITHUB_TOKEN` は Cloudflare 側の secret なので、自動デプロイでは上書きしません。トークンが未登録のままだと、デプロイのジョブは「CLOUDFLARE_API_TOKEN が必要」というエラーで止まります。
+`GOOGLE_API_KEY` と `GITHUB_TOKEN` は Cloudflare 側の secret なので、自動デプロイでは上書きしません。D1 のテーブルを変える(`migrations/` に SQL を足す)ときは、デプロイの前に手元で `npx wrangler d1 migrations apply nook-study --remote` を実行します。自動デプロイのトークンには D1 の権限を付けていません。トークンが未登録のままだと、デプロイのジョブは「CLOUDFLARE_API_TOKEN が必要」というエラーで止まります。
 
 ## ローカルでの確認
 
@@ -134,6 +141,7 @@ npm run typecheck
 
 - GitHub Actions: 公開リポジトリなら実行時間は無料で、上限もありません。
 - R2: 保存 10 GB/月、書き込み 100 万回/月、読み取り 1000 万回/月まで無料です。
+- D1: 保存 5 GB、読み取り 1 日 500 万行、書き込み 1 日 10 万行まで無料です。学習データは 1 人分の書き込みだけなので、この範囲に収まります。
 - Workers Free: 1 日 10 万リクエストまで。チャット 1 回あたりの外部リクエストは、記事のリンク最大 5 件と Gemini 1 件です。
 - GitHub は、公開リポジトリに 60 日間コミットが無いと cron の workflow を止めます。止まったら Actions 画面で再び有効にしてください。
 - collector は `NOOK_LLM_RESPONSE_CACHE=enabled` で動き、同じ記事やリポジトリの要約を R2 から再利用する。Retry で同じ日を再実行しても、内容が変わっていない記事は LLM を呼ばない。

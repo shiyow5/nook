@@ -14,6 +14,15 @@
     "run_worker_first": true
   },
   "r2_buckets": [{ "binding": "NOOK_BUCKET", "bucket_name": "nook-data" }],
+  // 学習データ(お気に入り・メモ・用語辞書など、#13)。テーブルは migrations/ で管理する
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nook-study",
+      "database_id": "45492da1-413c-4031-85c5-8359eca133f5",
+      "migrations_dir": "migrations"
+    }
+  ],
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
     // Python 側(GitHub Actions)と同じ provider:model 形式。Worker は google-gla のみ対応。
