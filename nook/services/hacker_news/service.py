@@ -1,8 +1,8 @@
 import inspect
 import json
 import os
+import re
 import time
-import traceback
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,6 +12,56 @@ from bs4 import BeautifulSoup
 from nook.services.collector_storage import CollectorStorage
 from nook.services.llm_client import create_client
 from nook.services.storage import build_storage_backend
+
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-US,en;q=0.9,ja;q=0.8",
+}
+# これより短い本文は「読めた」とみなさず、コメントからの要約に切り替える
+_MIN_ARTICLE_CHARS = 200
+_MAX_COMMENTS = 8
+_JAVASCRIPT_WALL = re.compile(
+    r"enable javascript|javascript is (disabled|required)|just a moment|checking your browser",
+    re.IGNORECASE,
+)
+_NOISE_TAGS = [
+    "script",
+    "style",
+    "nav",
+    "header",
+    "footer",
+    "aside",
+    "form",
+    "noscript",
+]
+_TEXT_TAGS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "pre", "blockquote"]
+_DISCUSSION_URL = "https://news.ycombinator.com/item?id={story_id}"
+
+
+def extract_article_text(html: str) -> str:
+    """記事ページから本文らしいテキストを取り出す。入れ子の段落も読む。"""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all(_NOISE_TAGS):
+        tag.decompose()
+    container = soup.find("article") or soup.find("main") or soup.body or soup
+    parts = [
+        node.get_text(" ", strip=True)
+        for node in container.find_all(_TEXT_TAGS)
+        if node.get_text(strip=True)
+    ]
+    text = "\n".join(parts) if parts else container.get_text("\n", strip=True)
+    if len(text) < _MIN_ARTICLE_CHARS:
+        meta = soup.find("meta", attrs={"property": "og:description"}) or soup.find(
+            "meta", attrs={"name": "description"}
+        )
+        description = (meta.get("content") or "").strip() if meta else ""
+        if description and description not in text:
+            text = f"{text}\n{description}".strip()
+    return text
+
 
 _MARKDOWN_FORMAT = """
 # {title}
@@ -54,6 +104,7 @@ class Story:
     score: int
     url: str | None = None
     text: str | None = None
+    story_id: int | None = None
 
 
 class HackerNewsRetriever:
@@ -131,7 +182,9 @@ class HackerNewsRetriever:
             elif url:
                 # URLのみの場合、リンク先の記事を要約
                 print(f"Retrieving and summarizing URL for story {story_id}: {url}")
-                summary = self._retrieve_and_summarize_url(url, title)
+                summary = self._summarize_story_url(
+                    url, title, story_data.get("kids") or []
+                )
                 time.sleep(2)  # LLM API のレート制限対策
 
             # summaryがNoneのままの場合（テキストもURLもなく要約できなかった、またはエラー発生）はスキップしない
@@ -142,6 +195,7 @@ class HackerNewsRetriever:
                     score=score,
                     url=url,
                     text=summary,  # HNテキストがあった場合はその要約orクレンジング結果、URLの場合は記事の要約
+                    story_id=story_id,
                 )
             )
             # 処理の間に短い待機を入れる（API制限回避）
@@ -149,87 +203,61 @@ class HackerNewsRetriever:
 
         return stories
 
-    def _retrieve_and_summarize_url(self, url: str, title: str) -> str | None:
-        """
-        指定されたURLから記事の内容を取得し、要約する。
-
-        Parameters
-        ----------
-        url : str
-            記事のURL。
-        title : str
-            記事のタイトル（要約のコンテキスト用）。
-
-        Returns
-        -------
-        str | None
-            記事の要約。取得または要約に失敗した場合はNone。
-        """
+    def _fetch_article_text(self, url: str) -> tuple[str, str | None]:
+        """リンク先の本文を取る。読めなかったときは (途中まで取れた本文, 日本語の理由) を返す。"""
         try:
-            response = requests.get(url, timeout=15)  # タイムアウト設定
-            response.raise_for_status()  # HTTPエラーチェック
-            content_type = response.headers.get("content-type", "").lower()
+            response = requests.get(url, headers=_BROWSER_HEADERS, timeout=15)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            print(f"Error retrieving URL {url}: {error}")
+            status = getattr(getattr(error, "response", None), "status_code", None)
+            return "", f"アクセスを拒否されました({status})" if status else "取得エラー"
+        except requests.exceptions.RequestException as error:
+            print(f"Error retrieving URL {url}: {error}")
+            return "", "接続できませんでした"
+        content_type = response.headers.get("content-type", "").lower()
+        if "html" not in content_type:
+            return "", f"HTML ではないページ({content_type or '種類不明'})"
+        text = self._cleanse_text(extract_article_text(response.text))
+        if _JAVASCRIPT_WALL.search(text[:2000]) and len(text) < 2000:
+            return "", "JavaScript が必要なページ"
+        if len(text) < _MIN_ARTICLE_CHARS:
+            return text, "本文がほとんどないページ"
+        return text, None
 
-            # HTMLコンテンツのみ処理
-            if "html" not in content_type:
-                print(f"Skipping non-HTML content at {url}: {content_type}")
-                return f"Skipping non-HTML content ({content_type})"  # 要約できない理由を返す
+    def _fetch_comment_texts(self, kids: list[int]) -> list[str]:
+        comments: list[str] = []
+        for kid in kids[:_MAX_COMMENTS]:
+            item = self._get_story(kid)
+            if not item or item.get("deleted") or item.get("dead"):
+                continue
+            text = self._cleanse_text(item.get("text"))
+            if text:
+                comments.append(text)
+        return comments
 
-            soup = BeautifulSoup(response.text, "html.parser")
-            # 主要なテキストコンテンツを抽出する試み (より堅牢な方法)
-            main_content = soup.find("article") or soup.find("main") or soup.body
-            if main_content:
-                text = "\n".join(
-                    p.get_text()
-                    for p in main_content.find_all(
-                        [
-                            "p",
-                            "h1",
-                            "h2",
-                            "h3",
-                            "h4",
-                            "h5",
-                            "h6",
-                            "li",
-                        ],  # リスト項目も追加
-                        recursive=False,  # 主要コンテナ直下のみを対象にする場合
-                    )
-                    if p.get_text(strip=True)  # 空のタグを除外
-                )
-                # それでも取れない場合、body全体から取得
-                if not text.strip():
-                    text = main_content.get_text(
-                        separator="\\n", strip=True
-                    )  # エスケープ修正
-            else:
-                text = soup.get_text(
-                    separator="\\n", strip=True
-                )  # エスケープ修正 # フォールバック
-
-            cleaned_text = self._cleanse_text(text)
-
-            if not cleaned_text or cleaned_text.isspace():
-                print(
-                    f"Skipping summarization for {url} due to empty content after cleaning."
-                )
-                return "Content could not be retrieved or was empty after cleaning."
-
-            if len(cleaned_text) < 100:  # 短すぎるコンテンツは要約しない
-                print(f"Skipping summarization for {url} due to short content.")
-                return cleaned_text  # 短い場合はそのまま返す
-
+    def _summarize_story_url(self, url: str, title: str, kids: list[int]) -> str:
+        """本文を要約する。読めなければ Hacker News のコメントから議論をまとめる。"""
+        text, reason = self._fetch_article_text(url)
+        if reason is None:
             print(f"Summarizing content from URL: {url}")
-            return self._summarize_content(
-                title, cleaned_text[:20000]
-            )  # 長すぎる場合は切り詰める
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error retrieving URL {url}: {e}")
-            return f"Error retrieving URL: {e}"
-        except Exception as e:
-            print(f"Error processing content from {url}: {e}")
-            traceback.print_exc()
-            return f"Error processing content: {e}"
+            return self._summarize_content(title, text[:20000])
+        comments = self._fetch_comment_texts(kids)
+        if comments:
+            material = "\n\n".join(
+                part
+                for part in [
+                    text,
+                    "Hacker News のコメント:\n" + "\n---\n".join(comments),
+                ]
+                if part
+            )
+            summary = self._summarize_content(title, material[:20000])
+            return (
+                f"(元記事の本文を読めなかったため({reason})、"
+                f"Hacker News のコメントから議論をまとめています)\n\n{summary}"
+            )
+        return f"元記事の本文を読めませんでした({reason})。元記事を開いて確認してください。"
 
     def _summarize_content(self, title: str, text: str) -> str:
         """
@@ -254,7 +282,7 @@ class HackerNewsRetriever:
             )
         except Exception as e:
             print(f"Error during summarization for title '{title[:50]}...': {e}")
-            return f"Error summarizing content: {e}"
+            return "要約の作成に失敗しました。元記事を開いて確認してください。"
 
     def _get_top_storie_ids(self) -> list[int]:
         """Hacker News のトップストーリーIDリストを取得する。"""
@@ -347,6 +375,12 @@ class HackerNewsRetriever:
         # URLがある場合はリンクを表示、ない場合は要約テキストを直接表示
         if story.url:
             url_or_text = f"[View Link]({story.url})\n\n{summary_text}"
+            if story.story_id is not None:
+                discussion = _DISCUSSION_URL.format(story_id=story.story_id)
+                url_or_text = (
+                    f"[View Link]({story.url}) · [Hacker News のコメント]({discussion})"
+                    f"\n\n{summary_text}"
+                )
         else:
             # URLがなく、HNのテキストを要約した場合 or そのまま表示した場合
             url_or_text = summary_text
