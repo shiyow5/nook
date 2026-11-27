@@ -57,7 +57,7 @@ describe("GET /", () => {
   it("server-renders tabs, the first tab's articles and the viewer state", async () => {
     const { deps } = buildDeps();
 
-    const response = await handleRequest(request(`/?date=${DAY}`), testEnv(), deps);
+    const response = await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps);
     const html = await response.text();
 
     expect(response.status).toBe(200);
@@ -78,7 +78,7 @@ describe("GET /", () => {
   it("lists one row per article and shows the first article with its source link", async () => {
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps)).text();
 
     expect(html.match(/class="article-row"/g)).toHaveLength(2);
     expect(html).toContain('<span class="row-title">First Article</span>');
@@ -97,7 +97,7 @@ describe("GET /", () => {
   it("uses a date picker that cannot go past today", async () => {
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps)).text();
 
     expect(html).toContain(`type="date" value="${DAY}" max="${DAY}"`);
     expect(html).toMatch(/id="next-day"[^>]* disabled/);
@@ -107,7 +107,7 @@ describe("GET /", () => {
   it("groups tabs into 国内 / 海外 / 論文 in the menu", async () => {
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps)).text();
 
     const groups = [...html.matchAll(/<span class="tab-group-name">([^<]+)<\/span>/g)].map((match) => match[1]);
     expect(groups).toEqual(["国内", "海外", "論文"]);
@@ -120,7 +120,7 @@ describe("GET /", () => {
     await env.NOOK_BUCKET.put(`jp_tech_news/${otherDay}.md`, "# 国内の記事\n\n[View on Zenn](https://zenn.dev/x)\n\n本文");
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${otherDay}&tab=jp_tech_news`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${otherDay}&tab=jp_tech_news`), testEnv(), deps)).text();
 
     expect(html).toMatch(/data-app-name="jp_tech_news" aria-current="page"/);
     expect(html).toContain('<span class="row-title">国内の記事</span>');
@@ -132,7 +132,7 @@ describe("GET /", () => {
   it("falls back to the first tab when the URL names an unknown tab", async () => {
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${DAY}&tab=nope`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${DAY}&tab=nope`), testEnv(), deps)).text();
 
     expect(html).toMatch(/data-app-name="tech_news" aria-current="page"/);
   });
@@ -141,7 +141,7 @@ describe("GET /", () => {
     const { deps } = buildDeps();
     deps.now = () => new Date("2026-11-25T16:30:00Z"); // 2026-11-26 01:30 JST
 
-    const html = await (await handleRequest(request("/"), testEnv(), deps)).text();
+    const html = await (await handleRequest(request("/read"), testEnv(), deps)).text();
 
     expect(html).toContain(`value="${DAY}"`);
   });
@@ -150,7 +150,7 @@ describe("GET /", () => {
     await env.NOOK_BUCKET.put(`tech_news/${DAY}.md`, "# x</script><script>alert(1)</script>");
     const { deps } = buildDeps();
 
-    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+    const html = await (await handleRequest(request(`/read?date=${DAY}`), testEnv(), deps)).text();
 
     expect(html).not.toContain("<script>alert(1)</script>");
   });
@@ -388,5 +388,98 @@ describe("static assets", () => {
     expect(await script.text()).toContain("startViewer");
     expect(style.status).toBe(200);
     expect(await style.text()).toContain(".study-fab");
+  });
+});
+
+describe("home screen (#56)", () => {
+  const homeDay = "2026-11-20";
+
+  beforeEach(async () => {
+    await env.NOOK_BUCKET.put(
+      `jp_tech_news/${homeDay}.md`,
+      "# 国内の一本目\n\n[View on Zenn Trending](https://zenn.dev/a)\n\n国内の要約です。&amp; 続き\n\n---\n\n# 国内の二本目\n\n本文",
+    );
+    await env.NOOK_BUCKET.put(`tech_news/${homeDay}.md`, TECH_NEWS_MARKDOWN);
+    await env.NOOK_BUCKET.put(`arxiv_news/${homeDay}.md`, "# Paper A\n\n[View on arXiv cs.CL](https://arxiv.org/abs/1)\n\n論文の要約。");
+  });
+
+  it("shows the day's summary, one pick per group and a card per tab", async () => {
+    const { deps } = buildDeps();
+
+    const response = await handleRequest(request(`/?date=${homeDay}`), testEnv(), deps);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('<body class="home-page">');
+    expect(html).toContain("11月20日(金)のまとめ");
+    expect(html).toContain("3 つのタブで 5 本");
+    const picks = [...html.matchAll(/<span class="pick-tab">([^<]+)<\/span>/g)].map((match) => match[1]);
+    expect(picks).toEqual(["国内", "News", "arXiv"]);
+    expect(html).toContain('<span class="pick-lead">国内の要約です。&amp; 続き</span>');
+    expect(html).toContain("まず読む 3 本");
+    expect(html.match(/class="tab-card"/g)?.length).toBe(testEnv().VIEWER_SERVICES.split(",").length);
+    expect(html).toContain("この日は新しい記事がありません。");
+    expect(html).toMatch(/href="\/read\?tab=jp_tech_news&amp;date=2026-11-20&amp;article=[^"]+"/);
+    expect(html).toContain("国内 の 2 本をすべて見る");
+  });
+
+  it("embeds every article of the day for the search box", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${homeDay}`), testEnv(), deps)).text();
+
+    const state = JSON.parse(html.split('<script id="home-state" type="application/json">')[1].split("</script>")[0]);
+    expect(state.articles).toHaveLength(5);
+    expect(state.articles.find((article: { label: string }) => article.label === "国内")).toMatchObject({ app_name: "jp_tech_news", label: "国内", title: "国内の一本目" });
+  });
+
+  it("uses the new menu with bookmarks, history and the glossary marked as 準備中", async () => {
+    const { deps } = buildDeps();
+
+    const home = await (await handleRequest(request(`/?date=${homeDay}`), testEnv(), deps)).text();
+    const read = await (await handleRequest(request(`/read?date=${homeDay}&tab=tech_news`), testEnv(), deps)).text();
+
+    for (const label of ["ブックマーク", "履歴", "用語辞書"]) {
+      expect(home).toMatch(new RegExp(`aria-disabled="true">.*${label}.*準備中`));
+    }
+    expect(home).toMatch(/class="menu-item" href="\/\?date=2026-11-20" aria-current="page"/);
+    expect(home).not.toMatch(/class="tab-item"[^>]*aria-current/);
+    expect(read).toMatch(/class="tab-item" href="\/read\?tab=tech_news&amp;date=2026-11-20" data-app-name="tech_news" aria-current="page"/);
+    expect(read).toContain('<a class="brand" href="/?date=2026-11-20">');
+  });
+
+  it("drops the date from links on today's page", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request("/"), testEnv(), deps)).text();
+
+    expect(html).toContain("1 つのタブで 2 本");
+    expect(html).toContain('href="/read?tab=tech_news"');
+  });
+
+  it("redirects old /?tab= links to the detail screen", async () => {
+    const { deps } = buildDeps();
+
+    const response = await handleRequest(request(`/?tab=tech_news&date=${homeDay}`), testEnv(), deps);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `https://nook-viewer.example.workers.dev/read?tab=tech_news&date=${homeDay}`,
+    );
+  });
+});
+
+describe("home tab cards", () => {
+  it("orders cards 国内 → 海外 → 論文 and puts empty tabs last", async () => {
+    const day = "2026-11-19";
+    await env.NOOK_BUCKET.put(`jp_tech_news/${day}.md`, "# a\n\nx");
+    await env.NOOK_BUCKET.put(`tech_news/${day}.md`, "# b\n\ny");
+    await env.NOOK_BUCKET.put(`arxiv_news/${day}.md`, "# c\n\nz");
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${day}`), testEnv(), deps)).text();
+
+    const order = [...html.matchAll(/<article class="tab-card" data-app-name="([^"]+)"/g)].map((match) => match[1]);
+    expect(order.slice(0, 3)).toEqual(["jp_tech_news", "tech_news", "arxiv_news"]);
   });
 });
