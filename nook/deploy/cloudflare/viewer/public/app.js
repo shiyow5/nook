@@ -16,8 +16,6 @@ const NARROW_QUERY = "(max-width: 760px)";
 const SHEET_CLOSE_RATIO = 0.4;
 // 上に引いてこの高さ(画面に対する割合)を超えたら全画面に広げる
 const SHEET_FULL_RATIO = 0.75;
-const INTRO_PROMPT =
-  "この記事を、この分野に詳しくない人向けの入門の解説として説明してください。背景、何が問題で、記事が何をしたのか、なぜ大事なのかの順に、専門用語には短い説明を添えてください。";
 
 function shiftDay(day, delta) {
   const [year, month, date] = day.split("-").map(Number);
@@ -177,7 +175,9 @@ function startViewer() {
     termList: $("term-list"),
     quizButton: $("quiz-button"),
     quizArea: $("quiz-area"),
-    introButton: $("intro-button"),
+    explainIntro: $("explain-intro"),
+    explainDeep: $("explain-deep"),
+    explainArea: $("explain-area"),
   };
 
   function label(appName) {
@@ -471,6 +471,10 @@ function startViewer() {
       runtime.study[key] = {
         terms: { status: "idle", items: [], error: "" },
         quiz: { status: "idle", items: [], error: "", answers: {} },
+        // 解説(#18)。押したモードだけ作り、作ったものはサーバーにも保存される
+        intro: { status: "idle", html: "", error: "" },
+        deep: { status: "idle", html: "", error: "" },
+        mode: null,
       };
     }
     return runtime.study[key];
@@ -498,7 +502,12 @@ function startViewer() {
       if (!response.ok) {
         throw new Error(payload.detail || `作成できませんでした(${response.status})`);
       }
-      entry.items = kind === "terms" ? payload.terms || [] : payload.questions || [];
+      if (kind === "intro" || kind === "deep") {
+        // html はサーバー側(render.ts)で許可したタグと URL だけに絞ったもの
+        entry.html = payload.html || "";
+      } else {
+        entry.items = kind === "terms" ? payload.terms || [] : payload.questions || [];
+      }
       entry.status = "ready";
     } catch (error) {
       entry.status = "error";
@@ -625,6 +634,59 @@ function startViewer() {
         return card;
       }),
     );
+  }
+
+  function renderExplanation(article) {
+    const entry = article ? studyEntry(article) : null;
+    const mode = entry?.mode || null;
+    for (const button of [el.explainIntro, el.explainDeep]) {
+      button.disabled = !article;
+      button.setAttribute("aria-pressed", String(mode === button.dataset.kind));
+    }
+    if (!entry || !mode) {
+      el.explainArea.replaceChildren(
+        studyMessage("skeleton-caption", "入門は 3 行まとめ・例え・前提の用語・なぜ大切か、深掘りは仕組みと実務の良い例・悪い例です。"),
+      );
+      return;
+    }
+    const state = entry[mode];
+    if (state.status === "loading" || state.status === "idle") {
+      el.explainArea.replaceChildren(
+        skeletonBlock(mode === "intro" ? "入門の解説を書いています…" : "深掘りの解説を書いています…", [
+          skeleton("skeleton-title"),
+          skeleton("skeleton-line"),
+          skeleton("skeleton-line"),
+          skeleton("skeleton-line is-short"),
+          skeleton("skeleton-title"),
+          skeleton("skeleton-line"),
+          skeleton("skeleton-line is-short"),
+        ]),
+      );
+      return;
+    }
+    if (state.status === "error") {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "text-button";
+      retry.textContent = "もう一度試す";
+      retry.addEventListener("click", () => {
+        state.status = "idle";
+        loadStudy(mode);
+      });
+      el.explainArea.replaceChildren(studyMessage("study-error", state.error), retry);
+      return;
+    }
+    el.explainArea.innerHTML = state.html;
+  }
+
+  function showExplanation(kind) {
+    const article = currentArticle();
+    if (!article) {
+      return;
+    }
+    studyEntry(article).mode = kind;
+    renderStudy();
+    loadStudy(kind);
   }
 
   function renderQuiz(article) {
@@ -815,11 +877,11 @@ function startViewer() {
     el.chatArticle.textContent = target;
     renderTerms(article);
     renderQuiz(article);
+    renderExplanation(article);
     if (runtime.studyOpen && article && studyEntry(article).terms.status === "idle") {
       loadStudy("terms");
     }
     const pending = article ? runtime.pendingChats.has(chatKey(article)) : false;
-    el.introButton.disabled = !article || pending;
     el.chatInput.disabled = !article || pending;
     el.chatSubmit.disabled = !article || pending;
     el.chatSubmit.textContent = pending ? "回答を待っています…" : "送信";
@@ -1119,10 +1181,8 @@ function startViewer() {
     }
   });
   el.quizButton.addEventListener("click", () => loadStudy("quiz"));
-  el.introButton.addEventListener("click", () => {
-    setChatOpen(true);
-    ask(INTRO_PROMPT, "入門の解説を読む");
-  });
+  el.explainIntro.addEventListener("click", () => showExplanation("intro"));
+  el.explainDeep.addEventListener("click", () => showExplanation("deep"));
   el.chatPanel.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => ask(chip.dataset.prompt || chip.textContent || "", chip.textContent));
   });

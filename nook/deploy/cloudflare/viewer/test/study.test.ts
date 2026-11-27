@@ -79,6 +79,31 @@ describe("POST /api/study/:app", () => {
     expect(await env.NOOK_BUCKET.get(studyCacheKey("jp_tech_news", DAY, id, "terms"))).not.toBeNull();
   });
 
+  it("writes the intro and deep explanations as sanitized HTML and caches each mode (#18)", async () => {
+    const id = await articleId();
+    const text = "## 3 行まとめ\n\n- 一\n\n<script>alert(1)</script>\n\n```python\nprint(1)\n```";
+    const { deps, calls } = buildDeps(() =>
+      Response.json({ candidates: [{ content: { parts: [{ text }] } }] }),
+    );
+
+    const intro = await handleRequest(post({ article_id: id, date: DAY, kind: "intro" }), testEnv(), deps);
+    const again = await handleRequest(post({ article_id: id, date: DAY, kind: "intro" }), testEnv(), deps);
+    const deep = await handleRequest(post({ article_id: id, date: DAY, kind: "deep" }), testEnv(), deps);
+
+    const body = (await intro.json()) as { kind: string; markdown: string; html: string };
+    expect(body.kind).toBe("intro");
+    expect(body.html).toContain("<h2");
+    expect(body.html).toContain("<code");
+    expect(body.html).not.toContain("<script>");
+    expect(((await again.json()) as { html: string }).html).toBe(body.html);
+    expect(deep.status).toBe(200);
+    const geminiCalls = calls.filter((call) => call.url.startsWith(GEMINI));
+    expect(geminiCalls).toHaveLength(2);
+    expect(JSON.parse(geminiCalls[0].body).contents[0].parts[0].text).toContain("## 身近な例え");
+    expect(JSON.parse(geminiCalls[1].body).contents[0].parts[0].text).toContain("## 実務での良い例と悪い例");
+    expect(JSON.parse(geminiCalls[0].body).generationConfig).toBeUndefined();
+  });
+
   it("generates a three-question quiz", async () => {
     const id = await articleId();
     const { deps } = buildDeps(() => geminiReply(QUIZ));
