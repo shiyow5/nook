@@ -1,7 +1,13 @@
-// 読む画面(Design キャンバスの A+B 案)の動き。サーバーが埋め込んだ #viewer-state を起点に描画する。
+// 詳細画面(Design キャンバスの A+B 案)の動き。サーバーが埋め込んだ #viewer-state を起点に描画する。
 "use strict";
 
-const STORAGE_KEYS = { listOpen: "nook.listOpen", studyOpen: "nook.studyOpen", chatOpen: "nook.chatOpen" };
+const STORAGE_KEYS = {
+  listOpen: "nook.listOpen",
+  studyOpen: "nook.studyOpen",
+  chatOpen: "nook.chatOpen",
+  // ホームの「続きから読む」(home.js)が読む、最後に開いた記事
+  lastRead: "nook.lastRead",
+};
 const POLL_INTERVAL_MS = 5000;
 const POLL_ATTEMPTS = 24;
 // これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
@@ -114,10 +120,6 @@ function startViewer() {
 
   const $ = (id) => document.getElementById(id);
   const el = {
-    menuButton: $("menu-button"),
-    drawer: $("tab-drawer"),
-    drawerBackdrop: $("drawer-backdrop"),
-    drawerClose: $("drawer-close"),
     tabGroups: $("tab-groups"),
     currentTabLabel: $("current-tab-label"),
     dateForm: $("date-form"),
@@ -203,6 +205,12 @@ function startViewer() {
     if (runtime.currentApp) {
       url.searchParams.set("tab", runtime.currentApp);
     }
+    const article = currentArticle();
+    if (article) {
+      url.searchParams.set("article", article.article_id);
+    } else {
+      url.searchParams.delete("article");
+    }
     window.history.replaceState(null, "", url);
     el.tabField.value = runtime.currentApp || "";
   }
@@ -219,51 +227,41 @@ function startViewer() {
     window.location.href = url.toString();
   }
 
+  // メニューのジャンル(menu.ts が描画)は、選択中の印と件数だけを書き換える
   function renderTabs() {
     el.currentTabLabel.textContent = label(runtime.currentApp);
     el.listTabLabel.textContent = label(runtime.currentApp);
-    el.tabGroups.replaceChildren(
-      ...runtime.groupOrder
-        .map((group) => {
-          const members = runtime.appNames.filter((name) => runtime.tabMeta[name]?.group === group);
-          if (members.length === 0) {
-            return null;
-          }
-          const wrapper = document.createElement("div");
-          wrapper.className = "tab-group";
-          const heading = document.createElement("span");
-          heading.className = "tab-group-name";
-          heading.textContent = group;
-          wrapper.append(heading, ...members.map(renderTabItem));
-          return wrapper;
-        })
-        .filter(Boolean),
-    );
+    el.tabGroups.querySelectorAll(".tab-item[data-app-name]").forEach((item) => {
+      const appName = item.dataset.appName;
+      if (appName === runtime.currentApp) {
+        item.setAttribute("aria-current", "page");
+      } else {
+        item.removeAttribute("aria-current");
+      }
+      const count = item.querySelector(".tab-count");
+      if (count) {
+        count.textContent = `${articlesOf(appName).length} 件`;
+      }
+    });
   }
 
-  function renderTabItem(appName) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "tab-item";
-    button.dataset.appName = appName;
-    if (appName === runtime.currentApp) {
-      button.setAttribute("aria-current", "page");
+  function rememberLastRead(article, index) {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEYS.lastRead,
+        JSON.stringify({
+          app_name: runtime.currentApp,
+          label: label(runtime.currentApp),
+          date: runtime.date,
+          article_id: article.article_id,
+          title: article.title,
+          position: index + 1,
+          total: articlesOf().length,
+        }),
+      );
+    } catch {
+      // 保存できないブラウザでは「続きから読む」を出さないだけ
     }
-    const name = document.createElement("span");
-    name.className = "tab-name";
-    name.textContent = label(appName);
-    const description = document.createElement("span");
-    description.className = "tab-desc";
-    description.textContent = runtime.tabMeta[appName]?.description || "";
-    const count = document.createElement("span");
-    count.className = "tab-count";
-    count.textContent = `${articlesOf(appName).length} 件`;
-    button.append(name, description, count);
-    button.addEventListener("click", () => {
-      selectApp(appName);
-      closeDrawer();
-    });
-    return button;
   }
 
   function renderList() {
@@ -318,6 +316,7 @@ function startViewer() {
       return;
     }
     const index = selectedIndex();
+    rememberLastRead(article, index);
     const view = document.createElement("article");
     view.className = "article-view";
     view.dataset.articleId = article.article_id;
@@ -765,21 +764,8 @@ function startViewer() {
     (open ? el.chatInput : el.chatFab).focus();
   }
 
-  function openDrawer() {
-    el.drawer.hidden = false;
-    el.drawerBackdrop.hidden = false;
-    el.menuButton.setAttribute("aria-expanded", "true");
-    (el.drawer.querySelector('[aria-current="page"]') || el.drawerClose).focus();
-  }
-
   function closeDrawer() {
-    if (el.drawer.hidden) {
-      return;
-    }
-    el.drawer.hidden = true;
-    el.drawerBackdrop.hidden = true;
-    el.menuButton.setAttribute("aria-expanded", "false");
-    el.menuButton.focus();
+    window.nookMenu?.close();
   }
 
   async function safeJson(response) {
@@ -909,9 +895,16 @@ function startViewer() {
     return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
   }
 
-  el.menuButton.addEventListener("click", openDrawer);
-  el.drawerClose.addEventListener("click", closeDrawer);
-  el.drawerBackdrop.addEventListener("click", closeDrawer);
+  // ジャンルのリンクは、同じ日のタブなら読み直さずに切り替える
+  el.tabGroups.addEventListener("click", (event) => {
+    const item = event.target instanceof Element ? event.target.closest(".tab-item[data-app-name]") : null;
+    if (!item || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    selectApp(item.dataset.appName);
+    closeDrawer();
+  });
   el.listClose.addEventListener("click", () => setListOpen(false));
   el.listOpen.addEventListener("click", () => setListOpen(true));
   el.studyFab.addEventListener("click", () => setStudyOpen(true));
@@ -965,9 +958,10 @@ function startViewer() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      if (!el.drawer.hidden) {
-        closeDrawer();
-      } else if ((runtime.studyOpen || runtime.chatOpen) && narrow.matches) {
+      if (window.nookMenu?.isOpen()) {
+        return;
+      }
+      if ((runtime.studyOpen || runtime.chatOpen) && narrow.matches) {
         setPanels(false, false);
       }
       return;
@@ -985,6 +979,17 @@ function startViewer() {
   if (narrow.matches) {
     runtime.studyOpen = false;
     runtime.chatOpen = false;
+  }
+  // ホームから記事を指定して開いたとき(/read?tab=…&article=…)は、その記事を出す
+  const requestedArticle = new URL(window.location.href).searchParams.get("article");
+  const requestedIndex = requestedArticle
+    ? articlesOf().findIndex((article) => article.article_id === requestedArticle)
+    : -1;
+  if (requestedIndex > 0) {
+    runtime.selected[runtime.currentApp] = requestedIndex;
+  }
+  if (requestedIndex >= 0 && narrow.matches) {
+    runtime.view = "read";
   }
   render();
 }

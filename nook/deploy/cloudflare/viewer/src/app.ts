@@ -11,6 +11,7 @@ import {
 } from "./content";
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
 import { dispatchCollectorWorkflow } from "./github";
+import { buildHomeData, renderHomeHtml } from "./home";
 import { renderIndexHtml } from "./page";
 import { renderMarkdownHtml } from "./render";
 import { loadSettingsState, saveSettings } from "./settings";
@@ -60,6 +61,13 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
     return env.ASSETS.fetch(new Request(new URL(path.slice("/static".length), url), request));
   }
   if (method === "GET" && path === "/") {
+    // ホームを作る前(#56)の「/?tab=…」のブックマークは、詳細画面へ送る
+    if (url.searchParams.has("tab")) {
+      return Response.redirect(new URL(`/read${url.search}`, url).toString(), 302);
+    }
+    return renderHome(env, resolveDay(url.searchParams.get("date"), deps.now()), todayInJapan(deps.now()));
+  }
+  if (method === "GET" && path === "/read") {
     return renderIndex(
       env,
       resolveDay(url.searchParams.get("date"), deps.now()),
@@ -120,6 +128,14 @@ function ensureSameOrigin(request: Request, url: URL): void {
 async function renderIndex(env: NookEnv, day: string, requestedApp: string | null, today: string): Promise<Response> {
   const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
   const html = renderIndexHtml(page, buildInitialRender(page, requestedApp), assetVersion(env), today);
+  return new Response(html, {
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+async function renderHome(env: NookEnv, day: string, today: string): Promise<Response> {
+  const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
+  const html = renderHomeHtml(buildHomeData(page, today), assetVersion(env));
   return new Response(html, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });

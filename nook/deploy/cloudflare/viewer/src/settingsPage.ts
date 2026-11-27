@@ -30,7 +30,7 @@ export function renderSettingsHtml(
 </head>
 <body class="settings-page">
   <header class="topbar">
-    <a class="text-button" href="/">‹ 読む画面へ戻る</a>
+    <a class="text-button" href="/">‹ ホームへ戻る</a>
     <a class="brand" href="/">
       <img src="${ICON_URL}/svg?seed=nook" alt="" width="26" height="26">
       <span class="brand-name">nook</span>

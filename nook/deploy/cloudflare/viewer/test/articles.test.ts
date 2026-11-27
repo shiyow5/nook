@@ -225,3 +225,13 @@ describe("extractSourceLink", () => {
     expect(extractSourceLink("# T\n\n[other](https://example.com)")).toEqual({ source: null, link: null });
   });
 });
+
+describe("leadText", () => {
+  it("drops headings and the View link, decodes entities and truncates", async () => {
+    const { leadText } = await import("../src/home");
+    const html = '<h1 class="md-heading">Title</h1><p><a href="https://x">View on Zenn</a></p><p>本文 &amp; 続き</p>';
+
+    expect(leadText(html)).toBe("本文 & 続き");
+    expect(leadText(`<p>${"あ".repeat(200)}</p>`, 10)).toBe(`${"あ".repeat(10)}…`);
+  });
+});
