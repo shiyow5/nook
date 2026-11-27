@@ -6,6 +6,8 @@ const POLL_INTERVAL_MS = 5000;
 const POLL_ATTEMPTS = 24;
 // これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
 const NARROW_QUERY = "(max-width: 760px)";
+const INTRO_PROMPT =
+  "この記事を、この分野に詳しくない人向けの入門の解説として説明してください。背景、何が問題で、記事が何をしたのか、なぜ大事なのかの順に、専門用語には短い説明を添えてください。";
 
 function shiftDay(day, delta) {
   const [year, month, date] = day.split("-").map(Number);
@@ -100,6 +102,8 @@ function startViewer() {
     pendingChats: new Set(),
     pollTimerId: null,
     view: "list",
+    // 記事ごとの用語と問題(app:article_id → { terms, quiz })。状態は idle / loading / ready / error
+    study: {},
   };
   const narrow = window.matchMedia(NARROW_QUERY);
 
@@ -139,6 +143,10 @@ function startViewer() {
     chatForm: $("chat-form"),
     chatInput: $("chat-input"),
     chatSubmit: $("chat-submit"),
+    termList: $("term-list"),
+    quizButton: $("quiz-button"),
+    quizArea: $("quiz-area"),
+    introButton: $("intro-button"),
   };
 
   function label(appName) {
@@ -362,6 +370,146 @@ function startViewer() {
     el.reader.replaceChildren(view);
   }
 
+  function studyEntry(article) {
+    const key = chatKey(article);
+    if (!runtime.study[key]) {
+      runtime.study[key] = {
+        terms: { status: "idle", items: [], error: "" },
+        quiz: { status: "idle", items: [], error: "", answers: {} },
+      };
+    }
+    return runtime.study[key];
+  }
+
+  async function loadStudy(kind) {
+    const article = currentArticle();
+    if (!article) {
+      return;
+    }
+    const entry = studyEntry(article)[kind];
+    if (entry.status === "loading" || entry.status === "ready") {
+      return;
+    }
+    entry.status = "loading";
+    entry.error = "";
+    renderStudy();
+    try {
+      const response = await fetch(`/api/study/${encodeURIComponent(runtime.currentApp)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ article_id: article.article_id, date: runtime.date, kind }),
+      });
+      const payload = await safeJson(response);
+      if (!response.ok) {
+        throw new Error(payload.detail || `作成できませんでした(${response.status})`);
+      }
+      entry.items = kind === "terms" ? payload.terms || [] : payload.questions || [];
+      entry.status = "ready";
+    } catch (error) {
+      entry.status = "error";
+      entry.error = error instanceof Error ? error.message : "作成できませんでした。";
+    }
+    renderStudy();
+  }
+
+  function studyMessage(className, textContent) {
+    const node = document.createElement("p");
+    node.className = className;
+    node.textContent = textContent;
+    return node;
+  }
+
+  function renderTerms(article) {
+    if (!article) {
+      el.termList.replaceChildren();
+      return;
+    }
+    const terms = studyEntry(article).terms;
+    if (terms.status === "loading" || terms.status === "idle") {
+      el.termList.replaceChildren(studyMessage("study-loading", "記事から用語を選んでいます…"));
+      return;
+    }
+    if (terms.status === "error") {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "text-button";
+      retry.textContent = "もう一度試す";
+      retry.addEventListener("click", () => {
+        terms.status = "idle";
+        loadStudy("terms");
+      });
+      el.termList.replaceChildren(studyMessage("study-error", terms.error), retry);
+      return;
+    }
+    el.termList.replaceChildren(
+      ...terms.items.map((term) => {
+        const card = document.createElement("div");
+        card.className = "term-card";
+        const word = document.createElement("span");
+        word.className = "term-word";
+        word.textContent = term.word;
+        const text = document.createElement("span");
+        text.className = "term-text";
+        text.textContent = term.explanation;
+        card.append(word, text);
+        return card;
+      }),
+    );
+  }
+
+  function renderQuiz(article) {
+    const quiz = article ? studyEntry(article).quiz : null;
+    el.quizButton.disabled = !quiz || quiz.status === "loading";
+    el.quizButton.textContent = quiz?.status === "loading" ? "問題を作っています…" : "理解度チェック(3 問)";
+    if (!quiz || quiz.status === "idle" || quiz.status === "loading") {
+      el.quizArea.replaceChildren();
+      return;
+    }
+    if (quiz.status === "error") {
+      el.quizArea.replaceChildren(studyMessage("study-error", quiz.error));
+      return;
+    }
+    const answered = Object.keys(quiz.answers).length;
+    const correct = quiz.items.filter((item, index) => quiz.answers[index] === item.answer_index).length;
+    const nodes = quiz.items.map((item, index) => {
+      const box = document.createElement("div");
+      box.className = "quiz-question";
+      box.append(studyMessage("quiz-text", `Q${index + 1}. ${item.question}`));
+      const choices = document.createElement("div");
+      choices.className = "quiz-choices";
+      const chosen = quiz.answers[index];
+      item.choices.forEach((choice, choiceIndex) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "quiz-choice";
+        button.textContent = choice;
+        if (chosen !== undefined) {
+          button.disabled = true;
+          if (choiceIndex === item.answer_index) {
+            button.classList.add("correct");
+          } else if (choiceIndex === chosen) {
+            button.classList.add("wrong");
+          }
+        }
+        button.addEventListener("click", () => {
+          quiz.answers = { ...quiz.answers, [index]: choiceIndex };
+          renderStudy();
+        });
+        choices.append(button);
+      });
+      box.append(choices);
+      if (chosen !== undefined) {
+        const verdict = chosen === item.answer_index ? "正解です。" : "不正解です。";
+        box.append(studyMessage("quiz-result", `${verdict}${item.explanation}`));
+      }
+      return box;
+    });
+    if (answered === quiz.items.length) {
+      nodes.push(studyMessage("quiz-score", `${quiz.items.length} 問中 ${correct} 問正解でした。`));
+    }
+    el.quizArea.replaceChildren(...nodes);
+  }
+
   function renderStudy() {
     el.studyPanel.hidden = !runtime.studyOpen;
     el.studyBackdrop.hidden = !runtime.studyOpen;
@@ -369,7 +517,13 @@ function startViewer() {
     el.studyFab.setAttribute("aria-expanded", String(runtime.studyOpen));
     const article = currentArticle();
     el.studyArticle.textContent = article ? `対象: ${article.title}` : "記事を選ぶと、その記事について質問できます。";
+    renderTerms(article);
+    renderQuiz(article);
+    if (runtime.studyOpen && article && studyEntry(article).terms.status === "idle") {
+      loadStudy("terms");
+    }
     const pending = article ? runtime.pendingChats.has(chatKey(article)) : false;
+    el.introButton.disabled = !article || pending;
     el.chatInput.disabled = !article || pending;
     el.chatSubmit.disabled = !article || pending;
     el.chatSubmit.textContent = pending ? "回答を待っています…" : "送信";
@@ -386,7 +540,7 @@ function startViewer() {
         }
         const node = document.createElement("div");
         node.className = "chat-message user";
-        node.textContent = message.content;
+        node.textContent = message.display || message.content;
         return node;
       }),
     );
@@ -566,7 +720,7 @@ function startViewer() {
     return messages.map((message) => `${message.role}: ${message.content}`).join("\n\n");
   }
 
-  async function ask(message) {
+  async function ask(message, displayText = null) {
     const article = currentArticle();
     const text = message.trim();
     if (!article || !text) {
@@ -579,7 +733,7 @@ function startViewer() {
     const appName = runtime.currentApp;
     const history = runtime.chats[key] || [];
     const priorHistory = serializeHistory(history);
-    runtime.chats[key] = [...history, { role: "user", content: text }];
+    runtime.chats[key] = [...history, { role: "user", content: text, display: displayText }];
     runtime.pendingChats.add(key);
     el.chatInput.value = "";
     renderStudy();
@@ -649,8 +803,10 @@ function startViewer() {
       ask(el.chatInput.value);
     }
   });
+  el.quizButton.addEventListener("click", () => loadStudy("quiz"));
+  el.introButton.addEventListener("click", () => ask(INTRO_PROMPT, "入門の解説を読む"));
   el.studyPanel.querySelectorAll(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => ask(chip.dataset.prompt || chip.textContent || ""));
+    chip.addEventListener("click", () => ask(chip.dataset.prompt || chip.textContent || "", chip.textContent));
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
