@@ -1,7 +1,7 @@
 import feedparser
 from bs4 import BeautifulSoup
 
-feed_config = {"url": "https://36kr.com/feed-article"}
+feed_config = {"url": "https://www.36kr.com/feed"}
 
 feed = feedparser.parse(feed_config["url"])
 # pprint(feed)

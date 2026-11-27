@@ -343,16 +343,14 @@ class TechNews:
 
             text = "\n".join(line for line in text.splitlines() if line.strip())
 
+            # 記事ページが Bot 確認などで本文を返さないサイト(36Kr など、#9)でも、
+            # RSS に本文が入っていればそちらを使う。長い方を本文とみなす
+            rss_text = _rss_text(entry)
+            if len(rss_text) > len(text.strip()):
+                text = rss_text
             if not text or text.isspace():
-                # determine whether entry.content has content
-                if (
-                    len(rss_content := entry.get("summary_detail", {}).get("value", ""))
-                    > 0
-                ):
-                    text = BeautifulSoup(rss_content, "html.parser").get_text()
-                else:
-                    print(f"Extracted empty content for: {url}")
-                    return None
+                print(f"Extracted empty content for: {url}")
+                return None
 
             return Article(
                 feed_name=feed_name,
@@ -467,3 +465,14 @@ class TechNews:
             **念押しですが、要約は必ず"日本語で"記述してください。**
             """,
         )
+
+
+def _rss_text(entry: dict[str, Any]) -> str:
+    """RSS の content(全文)か summary の文字。HTML は文字だけにする。"""
+    parts = [content.get("value", "") for content in entry.get("content") or []]
+    parts.append(
+        entry.get("summary_detail", {}).get("value", "") or entry.get("summary", "")
+    )
+    best = max(parts, key=len, default="")
+    text = BeautifulSoup(best, "html.parser").get_text("\n") if best else ""
+    return "\n".join(line.strip() for line in text.splitlines() if line.strip())
