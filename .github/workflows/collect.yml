@@ -44,6 +44,10 @@ jobs:
       - name: Run collectors
         env:
           COLLECTORS: ${{ inputs.collectors || vars.NOOK_ENABLED_COLLECTORS }}
+          # 画面の設定画面(#7)の内容を反映する。予定実行は止めた collector を外し(apply)、
+          # collector を指定した手動実行はそのまま動かして既定値だけ書き出す(publish)
+          NOOK_COLLECTOR_SETTINGS: ${{ inputs.collectors && 'publish' || 'apply' }}
+          NOOK_SCHEDULED_COLLECTORS: ${{ vars.NOOK_ENABLED_COLLECTORS }}
           NOOK_RUNTIME_MODE: local
           NOOK_STORAGE_BACKEND: s3
           BUCKET_NAME: ${{ vars.R2_BUCKET }}

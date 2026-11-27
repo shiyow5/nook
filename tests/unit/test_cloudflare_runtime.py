@@ -103,11 +103,16 @@ def test_jp_tech_news_reads_own_config_and_writes_own_service(
     class DummyCollectorStorage:
         def __init__(self, *, service_name: str, backend: object) -> None:
             captured["service_name"] = service_name
+            self.backend = backend
+
+    class EmptyBackend:
+        def read_state(self, service_name: str, key: str) -> None:
+            return None
 
     monkeypatch.setattr(tech_news_service, "create_client", lambda **kwargs: object())
     monkeypatch.setattr(tech_news_service, "CollectorStorage", DummyCollectorStorage)
     monkeypatch.setattr(
-        tech_news_service, "build_storage_backend", lambda env: object()
+        tech_news_service, "build_storage_backend", lambda env: EmptyBackend()
     )
 
     collector = JpTechNews()
