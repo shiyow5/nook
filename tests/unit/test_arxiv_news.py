@@ -122,26 +122,76 @@ def test_old_entries_are_still_dropped_by_threshold(collector) -> None:
     assert kept == []
 
 
-def test_arxiv_news_uses_rss_abstract_without_fetching_the_page(
-    collector, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    def fail_get(*args, **kwargs):
-        raise AssertionError("arXiv の論文ページは取得しない")
+class _FakeResponse:
+    def __init__(self, status_code: int, text: str = "") -> None:
+        self.status_code = status_code
+        self.text = text
+        self.encoding = "utf-8"
 
-    monkeypatch.setattr(tech_news_service.requests, "get", fail_get)
-    entry = _entry("https://arxiv.org/abs/2611.34051?context=cs", "new")
+
+_PAPER_HTML = """<html><body><header>arXiv</header>
+<h1>KV cache compression</h1>
+<p>Department of Computer Science, Example University</p>
+<p>We propose a method that compresses the key value cache by merging similar heads and evaluate it on long context benchmarks.</p>
+<p>Our results show a 40 percent memory reduction with less than one point drop in accuracy across all tasks.</p>
+<footer>footer</footer></body></html>"""
+
+
+def _abstract_entry(link: str = "https://arxiv.org/abs/2611.34051?context=cs") -> dict:
+    entry = _entry(link, "new")
     entry["summary_detail"] = {
         "value": "arXiv:2611.34051v1 Announce Type: new \n"
         "Abstract: Gated DeltaNet <b>suffers</b> from recurrent state instability."
     }
+    return entry
 
-    article = collector._retrieve_article(entry, feed_name="arXiv cs.CL")
 
+def test_arxiv_news_reads_abstract_and_html_body(
+    collector, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import nook.services.arxiv_news.service as arxiv_service
+
+    requested: list[str] = []
+
+    def fake_get(url: str, **kwargs) -> _FakeResponse:
+        requested.append(url)
+        return _FakeResponse(200, _PAPER_HTML)
+
+    monkeypatch.setattr(arxiv_service.requests, "get", fake_get)
+
+    article = collector._retrieve_article(_abstract_entry(), feed_name="arXiv cs.CL")
+
+    assert requested == ["https://arxiv.org/html/2611.34051"]
     assert article is not None
     assert article.url == "https://arxiv.org/abs/2611.34051"
     assert article.text == (
         "KV cache compression\n\n"
-        "Gated DeltaNet suffers from recurrent state instability."
+        "Abstract: Gated DeltaNet suffers from recurrent state instability.\n\n"
+        "本文:\n"
+        "We propose a method that compresses the key value cache by merging similar heads"
+        " and evaluate it on long context benchmarks.\n"
+        "Our results show a 40 percent memory reduction with less than one point drop"
+        " in accuracy across all tasks."
+    )
+
+
+def test_arxiv_news_falls_back_to_abstract_without_html_version(
+    collector, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import nook.services.arxiv_news.service as arxiv_service
+
+    monkeypatch.setattr(
+        arxiv_service.requests,
+        "get",
+        lambda url, **kwargs: _FakeResponse(404, "Not Found"),
+    )
+
+    article = collector._retrieve_article(_abstract_entry(), feed_name="arXiv cs.CL")
+
+    assert article is not None
+    assert article.text == (
+        "KV cache compression\n\n"
+        "Abstract: Gated DeltaNet suffers from recurrent state instability."
     )
 
 
