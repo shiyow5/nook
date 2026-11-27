@@ -126,6 +126,11 @@ function startViewer() {
     pendingChats: new Set(),
     pollTimerId: null,
     view: "list",
+    // お気に入りに保存した記事(#14)。app → Set(article_id)
+    favorites: Object.fromEntries(
+      Object.entries(initial.favorites || {}).map(([appName, ids]) => [appName, new Set(ids)]),
+    ),
+    pendingFavorites: new Set(),
     // 記事ごとの用語と問題(app:article_id → { terms, quiz })。状態は idle / loading / ready / error
     study: {},
   };
@@ -259,6 +264,58 @@ function startViewer() {
     });
   }
 
+  function isFavorite(article) {
+    return runtime.favorites[runtime.currentApp]?.has(article.article_id) || false;
+  }
+
+  function favoriteButton(article) {
+    const saved = isFavorite(article);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "favorite-button";
+    button.className = "text-button favorite-button";
+    button.setAttribute("aria-pressed", String(saved));
+    button.textContent = saved ? "★ 保存済み" : "☆ 保存";
+    button.disabled = runtime.pendingFavorites.has(`${runtime.currentApp}:${article.article_id}`);
+    button.addEventListener("click", () => toggleFavorite(article));
+    return button;
+  }
+
+  // 押したらすぐ表示を切り替え、保存に失敗したら元に戻して理由を出す
+  async function toggleFavorite(article) {
+    const appName = runtime.currentApp;
+    const key = `${appName}:${article.article_id}`;
+    if (runtime.pendingFavorites.has(key)) {
+      return;
+    }
+    const saved = isFavorite(article);
+    const ids = runtime.favorites[appName] || new Set();
+    runtime.favorites[appName] = ids;
+    const apply = (value) => (value ? ids.add(article.article_id) : ids.delete(article.article_id));
+    apply(!saved);
+    runtime.pendingFavorites.add(key);
+    renderReader();
+    try {
+      const response = await fetch(`/api/favorites/${encodeURIComponent(appName)}`, {
+        method: saved ? "DELETE" : "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ article_id: article.article_id, date: runtime.date }),
+      });
+      if (!response.ok) {
+        const payload = await safeJson(response);
+        throw new Error(payload.detail || `保存できませんでした(${response.status})`);
+      }
+      setStatus(saved ? "ブックマークから外しました。" : "ブックマークに保存しました。");
+    } catch (error) {
+      apply(saved);
+      setStatus(error instanceof Error ? error.message : "保存できませんでした");
+    } finally {
+      runtime.pendingFavorites.delete(key);
+      renderReader();
+      document.getElementById("favorite-button")?.focus();
+    }
+  }
+
   function rememberLastRead(article, index) {
     try {
       window.localStorage.setItem(
@@ -367,6 +424,7 @@ function startViewer() {
       link.textContent = "元の記事を開く ↗";
       actions.append(link);
     }
+    actions.append(favoriteButton(article));
     const study = document.createElement("button");
     study.type = "button";
     study.className = "accent-button";

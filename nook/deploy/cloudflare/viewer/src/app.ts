@@ -10,11 +10,13 @@ import {
   viewerServiceNames,
 } from "./content";
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
+import { BOOKMARKS_SHELL, renderBookmarksBody, renderBookmarkViewBody } from "./bookmarksPage";
+import { addFavorite, favoriteIdsForDay, getFavorite, listFavorites, removeFavorite } from "./favorites";
 import { dispatchCollectorWorkflow } from "./github";
 import { buildHomeData, HOME_SHELL, renderHomeBody } from "./home";
 import { INDEX_SHELL, renderIndexBody } from "./page";
 import { loadingMessage, renderShellHead, streamPage } from "./shell";
-import { renderMarkdownHtml } from "./render";
+import { renderArticle, renderMarkdownHtml } from "./render";
 import { loadSettingsState, saveSettings } from "./settings";
 import { generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
 import { renderSettingsHtml } from "./settingsPage";
@@ -81,13 +83,23 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   if (method === "GET" && path === "/settings") {
     return renderSettings(env);
   }
+  if (method === "GET" && path === "/bookmarks") {
+    return renderBookmarks(env, todayInJapan(deps.now()), url);
+  }
+  if (method === "GET" && path === "/bookmarks/view") {
+    return renderBookmarkView(env, url, deps);
+  }
 
   const markdownMatch = /^\/api\/markdown\/([^/]+)$/.exec(path);
   if (method === "GET" && markdownMatch) {
     return readMarkdown(env, decodePathParam(markdownMatch[1]), url, deps);
   }
-  if (method === "POST") {
+  if (method !== "GET" && method !== "HEAD") {
     ensureSameOrigin(request, url);
+  }
+  const favoriteMatch = /^\/api\/favorites\/([^/]+)$/.exec(path);
+  if ((method === "PUT" || method === "DELETE") && favoriteMatch) {
+    return updateFavorite(env, method, decodePathParam(favoriteMatch[1]), request, deps);
   }
   const chatMatch = /^\/chat\/([^/]+)$/.exec(path);
   if (method === "POST" && chatMatch) {
@@ -132,8 +144,11 @@ function renderIndex(env: NookEnv, day: string, requestedApp: string | null, tod
   return streamPage(
     head,
     async () => {
-      const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
-      return renderIndexBody(page, buildInitialRender(page, requestedApp), today);
+      const [page, favorites] = await Promise.all([
+        loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day),
+        favoriteIdsForDay(env.DB, day),
+      ]);
+      return renderIndexBody(page, buildInitialRender(page, requestedApp), today, favorites);
     },
     `${url.pathname}${url.search}`,
   );
@@ -146,6 +161,65 @@ function renderHome(env: NookEnv, day: string, today: string, url: URL): Respons
     async () => renderHomeBody(buildHomeData(await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day), today)),
     `${url.pathname}${url.search}`,
   );
+}
+
+function renderBookmarks(env: NookEnv, today: string, url: URL): Response {
+  const head = renderShellHead({ ...BOOKMARKS_SHELL, version: assetVersion(env), loadingMessage: "ブックマークを読み込んでいます" });
+  return streamPage(
+    head,
+    async () =>
+      renderBookmarksBody({ favorites: await listFavorites(env.DB), appNames: viewerServiceNames(env), today }),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+async function renderBookmarkView(env: NookEnv, url: URL, deps: AppDeps): Promise<Response> {
+  const appName = url.searchParams.get("tab") ?? "";
+  const day = resolveDay(url.searchParams.get("date"), deps.now());
+  const favorite = await getFavorite(env.DB, appName, day, url.searchParams.get("article") ?? "");
+  if (favorite === null) {
+    throw new HttpError(404, "Bookmark not found");
+  }
+  const rendered = await renderArticle({ articleId: favorite.articleId, title: favorite.title, markdown: favorite.markdown }, 0);
+  const head = renderShellHead({ ...BOOKMARKS_SHELL, version: assetVersion(env), loadingMessage: "記事を読み込んでいます" });
+  return streamPage(
+    head,
+    async () =>
+      renderBookmarkViewBody({
+        favorite,
+        html: rendered.html,
+        appNames: viewerServiceNames(env),
+        today: todayInJapan(deps.now()),
+      }),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+async function updateFavorite(
+  env: NookEnv,
+  method: "PUT" | "DELETE",
+  appName: string,
+  request: Request,
+  deps: AppDeps,
+): Promise<Response> {
+  ensureViewerService(viewerServiceNames(env), appName);
+  let payload: Record<string, unknown>;
+  try {
+    payload = ((await request.json()) ?? {}) as Record<string, unknown>;
+  } catch {
+    throw new HttpError(400, "Request body must be JSON");
+  }
+  const { article_id: articleId, date } = payload;
+  if (typeof articleId !== "string" || !articleId || typeof date !== "string") {
+    throw new HttpError(400, "article_id と date を指定してください");
+  }
+  const day = resolveDay(date, deps.now());
+  if (method === "DELETE") {
+    await removeFavorite(env.DB, appName, day, articleId);
+    return Response.json({ saved: false });
+  }
+  await addFavorite({ db: env.DB, bucket: env.NOOK_BUCKET, app: appName, day, articleId, now: deps.now() });
+  return Response.json({ saved: true });
 }
 
 async function renderSettings(env: NookEnv): Promise<Response> {
