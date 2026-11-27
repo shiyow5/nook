@@ -6,6 +6,10 @@ const POLL_INTERVAL_MS = 5000;
 const POLL_ATTEMPTS = 24;
 // これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
 const NARROW_QUERY = "(max-width: 760px)";
+// シートを下に引いたとき、元の高さのこの割合より低くなったら閉じる
+const SHEET_CLOSE_RATIO = 0.6;
+// 上に引いてこの高さ(画面に対する割合)を超えたら全画面に広げる
+const SHEET_FULL_RATIO = 0.75;
 const INTRO_PROMPT =
   "この記事を、この分野に詳しくない人向けの入門の解説として説明してください。背景、何が問題で、記事が何をしたのか、なぜ大事なのかの順に、専門用語には短い説明を添えてください。";
 
@@ -517,8 +521,60 @@ function startViewer() {
     el.quizArea.replaceChildren(...nodes);
   }
 
+  /** スマホのシートを、つまみと見出しを掴んで上下に動かせるようにする。 */
+  function enableSheetDrag(panel, close) {
+    let drag = null;
+    const heightFor = (event) =>
+      Math.max(0, Math.min(window.innerHeight * 0.95, drag.startHeight - (event.clientY - drag.startY)));
+    const onMove = (event) => {
+      if (drag) {
+        panel.style.height = `${heightFor(event)}px`;
+      }
+    };
+    const onEnd = (event) => {
+      if (!drag) {
+        return;
+      }
+      const height = heightFor(event);
+      const shouldClose = height < drag.startHeight * SHEET_CLOSE_RATIO;
+      drag = null;
+      panel.classList.remove("dragging");
+      panel.style.height = "";
+      if (shouldClose) {
+        close();
+        return;
+      }
+      panel.classList.toggle("sheet-full", height > window.innerHeight * SHEET_FULL_RATIO);
+    };
+    panel.querySelectorAll(".sheet-grip, .study-head").forEach((handle) => {
+      handle.addEventListener("pointerdown", (event) => {
+        if (!narrow.matches || event.target.closest("button")) {
+          return;
+        }
+        drag = { startY: event.clientY, startHeight: panel.getBoundingClientRect().height };
+        panel.classList.add("dragging");
+        try {
+          handle.setPointerCapture(event.pointerId);
+        } catch {
+          // キャプチャできなくても、つまみの上で動かす分には追従する
+        }
+      });
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onEnd);
+      handle.addEventListener("pointercancel", onEnd);
+    });
+  }
+
   function renderStudy() {
     const anyOpen = runtime.studyOpen || runtime.chatOpen;
+    // シートを開いている間は裏の画面をスクロールさせない
+    document.body.classList.toggle("sheet-open", anyOpen && narrow.matches);
+    if (!runtime.studyOpen) {
+      el.studyPanel.classList.remove("sheet-full");
+    }
+    if (!runtime.chatOpen) {
+      el.chatPanel.classList.remove("sheet-full");
+    }
     el.studyPanel.hidden = !runtime.studyOpen;
     el.chatPanel.hidden = !runtime.chatOpen;
     el.studyBackdrop.hidden = !anyOpen;
@@ -798,6 +854,8 @@ function startViewer() {
   el.studyClose.addEventListener("click", () => setStudyOpen(false));
   el.studyBackdrop.addEventListener("click", () => setPanels(false, false));
   el.chatFab.addEventListener("click", () => setChatOpen(true));
+  enableSheetDrag(el.studyPanel, () => setStudyOpen(false));
+  enableSheetDrag(el.chatPanel, () => setChatOpen(false));
   el.chatClose.addEventListener("click", () => setChatOpen(false));
   el.retryButton.addEventListener("click", retryCurrentApp);
   el.filterInput.addEventListener("input", () => {
