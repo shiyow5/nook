@@ -14,9 +14,15 @@ export const INDEX_SHELL = {
 };
 
 /** 詳細画面の本体(<body> の中身から </html> まで)。外枠は shell.ts が先に送る。 */
-export function renderIndexBody(page: ViewerPage, initial: InitialRender, today: string = page.date): string {
+export function renderIndexBody(
+  page: ViewerPage,
+  initial: InitialRender,
+  today: string = page.date,
+  favorites: Record<string, string[]> = {},
+): string {
   const currentTab = initial.tabs.find((tab) => tab.isActive) ?? null;
-  const state = pageToState(page, { currentApp: initial.currentApp, today });
+  const state = { ...pageToState(page, { currentApp: initial.currentApp, today }), favorites };
+  const firstSaved = (favorites[initial.currentApp ?? ""] ?? []).includes(initial.articles[0]?.articleId ?? "");
   return `  <header class="topbar">
     <button id="menu-button" class="icon-button" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="tab-drawer">${icon("menu")}</button>
     <a class="brand" href="${escapeHtml(homePath(page.date, today))}">
@@ -70,7 +76,7 @@ ${renderArticleList(initial.articles)}
     </div>
 
     <main id="reader" class="reader">
-${renderReader(initial.articles[0] ?? null, initial.articles.length)}
+${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)}
     </main>
 
     <aside id="study-panel" class="study-panel" aria-labelledby="study-title" hidden>
@@ -156,7 +162,12 @@ function renderArticleList(articles: RenderedArticle[]): string {
     .join("\n");
 }
 
-function renderReader(article: RenderedArticle | null, total: number): string {
+/** お気に入りの切り替えボタン(#14)。押した後の表示は app.js が受け持つ。 */
+export function favoriteButtonHtml(saved: boolean): string {
+  return `<button id="favorite-button" class="text-button favorite-button" type="button" aria-pressed="${saved}">${saved ? "★ 保存済み" : "☆ 保存"}</button>`;
+}
+
+function renderReader(article: RenderedArticle | null, total: number, saved = false): string {
   if (article === null) {
     return '      <div id="reader-empty" class="empty-state reader-empty">表示できる記事がありません。日付やタブを変えてみてください。</div>';
   }
@@ -168,7 +179,7 @@ function renderReader(article: RenderedArticle | null, total: number): string {
           <span id="article-source" class="source-chip">${escapeHtml(article.source ?? "")}</span>
           <span id="article-position">1 / ${total}</span>
         </div>
-        <div class="article-actions">${link}<button id="study-open" class="accent-button" type="button">この記事で学ぶ</button></div>
+        <div class="article-actions">${link}${favoriteButtonHtml(saved)}<button id="study-open" class="accent-button" type="button">この記事で学ぶ</button></div>
 ${article.image ? `        <figure class="article-hero">${thumbnailHtml(article.image, "hero-image")}</figure>\n` : ""}        <div id="article-body" class="article-body markdown-content">${article.html}</div>
         <div class="article-pager">
           <button id="prev-article" class="text-button" type="button" disabled>‹ 前の記事</button>
