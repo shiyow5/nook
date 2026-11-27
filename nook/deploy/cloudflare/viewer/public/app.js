@@ -224,6 +224,7 @@ function startViewer() {
     if (runtime.currentApp) {
       url.searchParams.set("tab", runtime.currentApp);
     }
+    document.body.classList.add("is-leaving");
     window.location.href = url.toString();
   }
 
@@ -422,6 +423,44 @@ function startViewer() {
     renderStudy();
   }
 
+  // 生成を待つ間は、できあがりと同じ形の灰色の枠を出す(#55)
+  function skeleton(className) {
+    const node = document.createElement("span");
+    node.className = `skeleton ${className}`;
+    node.setAttribute("aria-hidden", "true");
+    return node;
+  }
+
+  function skeletonBlock(caption, children) {
+    const block = document.createElement("div");
+    block.className = "skeleton-stack";
+    block.setAttribute("aria-busy", "true");
+    const text = studyMessage("skeleton-caption", caption);
+    text.setAttribute("role", "status");
+    block.append(text, ...children);
+    return block;
+  }
+
+  function termSkeleton() {
+    return skeletonBlock(
+      "記事から用語を選んでいます…",
+      [0, 1, 2].map(() => {
+        const card = document.createElement("div");
+        card.className = "skeleton-card";
+        card.append(skeleton("skeleton-title"), skeleton("skeleton-line"), skeleton("skeleton-line is-short"));
+        return card;
+      }),
+    );
+  }
+
+  function quizSkeleton() {
+    return skeletonBlock("問題を作っています…", [
+      skeleton("skeleton-line"),
+      skeleton("skeleton-line is-short"),
+      ...[0, 1, 2, 3].map(() => skeleton("skeleton-choice")),
+    ]);
+  }
+
   function studyMessage(className, textContent) {
     const node = document.createElement("p");
     node.className = className;
@@ -436,7 +475,7 @@ function startViewer() {
     }
     const terms = studyEntry(article).terms;
     if (terms.status === "loading" || terms.status === "idle") {
-      el.termList.replaceChildren(studyMessage("study-loading", "記事から用語を選んでいます…"));
+      el.termList.replaceChildren(termSkeleton());
       return;
     }
     if (terms.status === "error") {
@@ -471,7 +510,11 @@ function startViewer() {
     const quiz = article ? studyEntry(article).quiz : null;
     el.quizButton.disabled = !quiz || quiz.status === "loading";
     el.quizButton.textContent = quiz?.status === "loading" ? "問題を作っています…" : "理解度チェック(3 問)";
-    if (!quiz || quiz.status === "idle" || quiz.status === "loading") {
+    if (quiz?.status === "loading") {
+      el.quizArea.replaceChildren(quizSkeleton());
+      return;
+    }
+    if (!quiz || quiz.status === "idle") {
       el.quizArea.replaceChildren();
       return;
     }
@@ -679,7 +722,13 @@ function startViewer() {
     if (pending) {
       const waiting = document.createElement("div");
       waiting.className = "chat-message assistant pending";
-      waiting.textContent = "調べています…";
+      waiting.setAttribute("aria-busy", "true");
+      waiting.textContent = "調べています";
+      const dots = document.createElement("span");
+      dots.className = "typing-dots";
+      dots.setAttribute("aria-hidden", "true");
+      dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
+      waiting.append(dots);
       el.chatLog.append(waiting);
     }
   }

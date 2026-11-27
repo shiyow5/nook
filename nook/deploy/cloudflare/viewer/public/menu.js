@@ -1,4 +1,4 @@
-// ハンバーガーメニュー(src/menu.ts が描画)の開閉。ホームと詳細画面の両方で読み込む。
+// ハンバーガーメニュー(src/menu.ts が描画)の開閉と、画面を移るときの帯。ホームと詳細画面の両方で読み込む。
 "use strict";
 
 const GENRE_OPEN_KEY = "nook.genreOpen";
@@ -67,6 +67,26 @@ function startMenu() {
     },
     true,
   );
+
+  // 別の画面へ移るリンクを押したら、次の画面が届くまで上端に帯を出す(#55)
+  document.addEventListener("click", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (
+      !link ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      link.target === "_blank" ||
+      new URL(link.href, window.location.href).origin !== window.location.origin
+    ) {
+      return;
+    }
+    document.body.classList.add("is-leaving");
+  });
+  // 戻るボタンでキャッシュから戻ったときは帯を消す
+  window.addEventListener("pageshow", () => document.body.classList.remove("is-leaving"));
 
   window.nookMenu = { open, close, isOpen: () => !drawer.hidden };
 }

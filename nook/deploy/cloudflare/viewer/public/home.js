@@ -51,6 +51,7 @@ function startHome() {
   const dateInput = $("date");
 
   function goToDay(day) {
+    document.body.classList.add("is-leaving");
     window.location.href = !day || day === state.today ? "/" : `/?date=${encodeURIComponent(day)}`;
   }
 
