@@ -7,7 +7,7 @@ import {
   serializeArticleIdentityState,
   splitMarkdownSections,
 } from "../src/articles";
-import { readLimitedText } from "../src/chat";
+import { extractMainText, readLimitedText } from "../src/chat";
 import { renderArticle, slugify } from "../src/render";
 
 const TWO_ARTICLES =
@@ -186,5 +186,21 @@ describe("slugify", () => {
     expect(slugify("日本語 Title!", 0)).toBe("日本語-title");
     expect(slugify("  Hello   World -- x ", 0)).toBe("hello-world-x");
     expect(slugify("!!!", 4)).toBe("section-4");
+  });
+});
+
+describe("extractMainText", () => {
+  it("prefers the arXiv abstract over the rest of <main>", () => {
+    const html = `<body><main><div class="breadcrumbs">Computer Science &gt; Computation and Language</div>
+      <h1 class="title">Title: Stable Gated DeltaNet-2</h1>
+      <blockquote class="abstract mathjax"><span class="descriptor">Abstract:</span>Gated DeltaNet &amp; friends are unstable.</blockquote>
+      </main></body>`;
+    expect(extractMainText(html)).toBe("Abstract: Gated DeltaNet & friends are unstable.");
+  });
+
+  it("falls back to <article> when there is no abstract", () => {
+    expect(extractMainText("<body><nav>menu</nav><article><p>Hello</p> <p>world</p></article></body>")).toBe(
+      "Hello world",
+    );
   });
 });
