@@ -69,6 +69,8 @@ class RedditExplorer:
         posts = self._collect_posts()
         for post in self._sort_posts_by_upvotes(posts):
             post.comments = self._retrieve_top_comments_of_post(post.id)
+            # Workers からは reddit.com を読めないので、チャット用に本文とコメントを残す(#34)
+            self._storage.write_source_text(post.permalink, _source_text(post))
             post.summary = self._summarize_reddit_post(post)
             markdowns.append(self._stylize_post(post))
             time.sleep(5)
@@ -244,3 +246,13 @@ class RedditExplorer:
             - `interesting_comments`: 特に興味深いコメントの要点
             """
         )
+
+
+def _source_text(post: RedditPost) -> str:
+    comments = "\n---\n".join(str(comment.get("text", "")) for comment in post.comments)
+    parts = [
+        post.title,
+        post.text or "",
+        f"上位のコメント:\n{comments}" if comments else "",
+    ]
+    return "\n\n".join(part for part in parts if part.strip())
