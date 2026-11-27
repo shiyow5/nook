@@ -10,6 +10,8 @@ import {
   viewerServiceNames,
 } from "./content";
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
+import { computeStats, countByDay, parseMonth, sessionsOnDay } from "./calendar";
+import { CALENDAR_SHELL, renderCalendarBody } from "./calendarPage";
 import { BOOKMARKS_SHELL, renderBookmarksBody, renderBookmarkViewBody } from "./bookmarksPage";
 import { addFavorite, favoriteIdsForDay, getFavorite, listFavorites, removeFavorite } from "./favorites";
 import { dispatchCollectorWorkflow } from "./github";
@@ -107,6 +109,9 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
 
   if (method === "GET" && path === "/settings") {
     return renderSettings(env);
+  }
+  if (method === "GET" && path === "/calendar") {
+    return renderCalendar(env, url, deps);
   }
   if (method === "GET" && path === "/glossary") {
     return renderGlossary(env, todayInJapan(deps.now()), url);
@@ -206,6 +211,31 @@ function renderHome(env: NookEnv, day: string, today: string, url: URL): Respons
   return streamPage(
     head,
     async () => renderHomeBody(buildHomeData(await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day), today)),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+function renderCalendar(env: NookEnv, url: URL, deps: AppDeps): Response {
+  const today = todayInJapan(deps.now());
+  const month = parseMonth(url.searchParams.get("month"), today);
+  const dayParam = url.searchParams.get("day");
+  const selected = dayParam === null ? null : resolveDay(dayParam, deps.now());
+  const head = renderShellHead({ ...CALENDAR_SHELL, version: assetVersion(env), loadingMessage: "学習の記録を読み込んでいます" });
+  return streamPage(
+    head,
+    async () => {
+      const days = await countByDay(env.DB);
+      const sessions = selected ? await sessionsOnDay(env.DB, env.NOOK_BUCKET, selected) : [];
+      return renderCalendarBody({
+        month,
+        today,
+        days,
+        stats: computeStats(days, today),
+        selected,
+        sessions,
+        appNames: viewerServiceNames(env),
+      });
+    },
     `${url.pathname}${url.search}`,
   );
 }
