@@ -7,7 +7,14 @@ describe("D1 study tables (#13)", () => {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'd1_%' ORDER BY name",
     ).all<{ name: string }>();
 
-    expect(results.map((row) => row.name)).toEqual(["ai_sessions", "favorites", "notes", "terms"]);
+    expect(results.map((row) => row.name)).toEqual([
+      "ai_sessions",
+      "archive_articles",
+      "archive_days",
+      "favorites",
+      "notes",
+      "terms",
+    ]);
   });
 
   it("treats terms case-insensitively", async () => {
