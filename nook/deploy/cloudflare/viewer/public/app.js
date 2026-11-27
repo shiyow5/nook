@@ -1,6 +1,22 @@
 // 詳細画面(Design キャンバスの A+B 案)の動き。サーバーが埋め込んだ #viewer-state を起点に描画する。
 "use strict";
 
+// アイコンだけのボタンにする。図柄はシェルに埋め込んだ <symbol id="icon-…">(src/icons.ts)を使う
+function makeIconButton(element, name, label) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#icon-${name}`);
+  svg.append(use);
+  element.classList.add("icon-button");
+  element.setAttribute("aria-label", label);
+  element.title = label;
+  element.replaceChildren(svg);
+  return element;
+}
+
 const STORAGE_KEYS = {
   listOpen: "nook.listOpen",
   studyOpen: "nook.studyOpen",
@@ -283,9 +299,9 @@ function startViewer() {
     const button = document.createElement("button");
     button.type = "button";
     button.id = "favorite-button";
-    button.className = "text-button favorite-button";
+    button.className = "favorite-button";
     button.setAttribute("aria-pressed", String(saved));
-    button.textContent = saved ? "★ 保存済み" : "☆ 保存";
+    makeIconButton(button, "star", saved ? "ブックマークから外す" : "ブックマークに保存");
     button.disabled = runtime.pendingFavorites.has(`${runtime.currentApp}:${article.article_id}`);
     button.addEventListener("click", () => toggleFavorite(article));
     return button;
@@ -430,8 +446,8 @@ function startViewer() {
     meta.className = "article-meta";
     const back = document.createElement("button");
     back.type = "button";
-    back.className = "text-button back-button";
-    back.textContent = "‹ 一覧";
+    back.className = "back-button";
+    makeIconButton(back, "chevronLeft", "記事一覧へ戻る");
     back.addEventListener("click", () => setView("list"));
     meta.append(back);
     const chip = document.createElement("span");
@@ -445,11 +461,10 @@ function startViewer() {
     actions.className = "article-actions";
     if (article.link) {
       const link = document.createElement("a");
-      link.className = "text-button";
       link.href = article.link;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = "元の記事を開く ↗";
+      makeIconButton(link, "external", "元の記事を開く");
       actions.append(link);
     }
     actions.append(favoriteButton(article));
@@ -470,14 +485,13 @@ function startViewer() {
     pager.className = "article-pager";
     const prev = document.createElement("button");
     prev.type = "button";
-    prev.className = "text-button";
-    prev.textContent = "‹ 前の記事";
+    makeIconButton(prev, "chevronLeft", "前の記事");
     prev.disabled = index === 0;
     prev.addEventListener("click", () => selectArticle(index - 1));
     const next = document.createElement("button");
     next.type = "button";
-    next.className = "primary-button";
-    next.textContent = "次の記事 ›";
+    next.className = "is-primary";
+    makeIconButton(next, "chevronRight", "次の記事");
     next.disabled = index >= articles.length - 1;
     next.addEventListener("click", () => selectArticle(index + 1));
     pager.append(prev, next);

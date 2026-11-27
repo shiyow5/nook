@@ -64,7 +64,7 @@ describe("favorites (#14)", () => {
     const removed = await handleRequest(favoriteRequest("DELETE", articleId), env, deps);
     const list = await (await handleRequest(request("/bookmarks"), env, deps)).text();
 
-    expect(marked).toContain('aria-pressed="true">★ 保存済み</button>');
+    expect(marked).toContain('aria-pressed="true" aria-label="ブックマークから外す"');
     const state = JSON.parse(marked.split('<script id="viewer-state" type="application/json">')[1].split("</script>")[0]);
     expect(state.favorites).toEqual({ jp_tech_news: [articleId] });
     expect(await removed.json()).toEqual({ saved: false });
@@ -89,6 +89,22 @@ describe("favorites (#14)", () => {
     expect(unknownArticle.status).toBe(404);
     expect(unknownTab.status).toBe(404);
     expect(missingView.status).toBe(404);
+  });
+
+  it("uses labelled icon-only buttons (#75)", async () => {
+    const articleId = await firstArticleId();
+    await handleRequest(favoriteRequest("PUT", articleId), env, deps);
+
+    const read = await (await handleRequest(request(`/read?date=${DAY}&tab=jp_tech_news`), env, deps)).text();
+    const list = await (await handleRequest(request("/bookmarks"), env, deps)).text();
+
+    // 画面の JavaScript が参照するアイコンは、シェルに 1 度だけ埋め込む
+    expect(read).toContain('<symbol id="icon-star"');
+    expect(read).toContain('aria-label="元の記事を開く" title="元の記事を開く"><svg');
+    expect(read).toContain('aria-label="次の記事" title="次の記事"><svg');
+    expect(read).toContain('aria-label="このタブを再取得" title="このタブを再取得"><svg');
+    expect(list).toContain('class="icon-button bookmark-remove" type="button" aria-label="ブックマークから外す" title="ブックマークから外す"><svg');
+    expect(read).not.toContain("元の記事を開く ↗");
   });
 
   it("links ブックマーク in the menu instead of showing 準備中", async () => {

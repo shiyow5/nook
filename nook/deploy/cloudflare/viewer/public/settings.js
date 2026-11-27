@@ -1,6 +1,22 @@
 // 設定画面(#7)。#settings-state の defaults(TOML から作った初期値)と settings(保存済みの上書き)を編集する。
 "use strict";
 
+// アイコンだけのボタンにする。図柄はシェルに埋め込んだ <symbol id="icon-…">(src/icons.ts)を使う
+function makeIconButton(element, name, label) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#icon-${name}`);
+  svg.append(use);
+  element.classList.add("icon-button");
+  element.setAttribute("aria-label", label);
+  element.title = label;
+  element.replaceChildren(svg);
+  return element;
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -155,8 +171,8 @@ function startSettings() {
     chip.append(keyword);
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.setAttribute("aria-label", `${keyword} を削除`);
-    remove.textContent = "×";
+    makeIconButton(remove, "close", `${keyword} を削除`);
+    remove.classList.add("is-small");
     remove.addEventListener("click", () => {
       feed.keywords = (feed.keywords || []).filter((word) => word !== keyword);
       renderFeeds();
@@ -201,10 +217,12 @@ function startSettings() {
         );
         const remove = document.createElement("button");
         remove.type = "button";
-        remove.className = "text-button danger-button";
-        remove.textContent = "削除";
+        remove.className = "danger-button";
+        makeIconButton(remove, "trash", "このフィードを削除");
         remove.disabled = rss.feeds.length <= 1;
-        remove.title = remove.disabled ? "フィードは 1 つ以上必要です" : "";
+        if (remove.disabled) {
+          remove.title = "フィードは 1 つ以上必要です";
+        }
         remove.addEventListener("click", () => {
           rss.feeds.splice(index, 1);
           renderFeeds();

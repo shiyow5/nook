@@ -16,7 +16,7 @@ function startBookmarks() {
       return;
     }
     button.disabled = true;
-    button.textContent = "外しています…";
+    button.classList.remove("is-error");
     try {
       const response = await fetch(`/api/favorites/${encodeURIComponent(card.dataset.appName)}`, {
         method: "DELETE",
@@ -32,7 +32,9 @@ function startBookmarks() {
       empty.hidden = remaining > 0;
     } catch {
       button.disabled = false;
-      button.textContent = "外せませんでした。もう一度";
+      button.classList.add("is-error");
+      button.title = "外せませんでした。もう一度押してください";
+      button.setAttribute("aria-label", button.title);
     }
   });
 }

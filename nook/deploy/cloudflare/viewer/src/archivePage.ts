@@ -3,7 +3,7 @@
 import type { ArchiveArticle, ArchiveQuery, ArchiveResult } from "./archive";
 import { ARCHIVE_PAGE_SIZE } from "./archive";
 import { displayLabel, type TabInfo, tabMeta } from "./content";
-import { ICON_URL, icon } from "./icons";
+import { ICON_URL, icon, iconButtonAttributes } from "./icons";
 import { readPath, renderMenu } from "./menu";
 import { formatDayLabel } from "./page";
 import { escapeHtml, thumbnailHtml } from "./render";
@@ -64,9 +64,9 @@ export function renderArchiveBody(args: {
   const pager =
     pages > 1
       ? `    <nav class="archive-pager" aria-label="ページ">
-      ${query.page > 1 ? `<a class="text-button" href="${escapeHtml(archivePath(query, { page: query.page - 1 }))}">‹ 前へ</a>` : ""}
+      ${query.page > 1 ? `<a class="icon-button" href="${escapeHtml(archivePath(query, { page: query.page - 1 }))}" ${iconButtonAttributes("前のページ")}>${icon("chevronLeft")}</a>` : ""}
       <span>${query.page} / ${pages}</span>
-      ${query.page < pages ? `<a class="text-button" href="${escapeHtml(archivePath(query, { page: query.page + 1 }))}">次へ ›</a>` : ""}
+      ${query.page < pages ? `<a class="icon-button" href="${escapeHtml(archivePath(query, { page: query.page + 1 }))}" ${iconButtonAttributes("次のページ")}>${icon("chevronRight")}</a>` : ""}
     </nav>`
       : "";
   const tagChips = result.tags
@@ -112,11 +112,11 @@ export function renderArchiveBody(args: {
       ${query.tag ? `<input type="hidden" name="tag" value="${escapeHtml(query.tag)}">` : ""}
       <button class="primary-button" type="submit">絞り込む</button>
       <div class="segmented" role="group" aria-label="表示の形">
-        <button id="archive-view-cards" type="button" aria-pressed="true">カード</button>
-        <button id="archive-view-list" type="button" aria-pressed="false">リスト</button>
+        <button id="archive-view-cards" type="button" aria-pressed="true" ${iconButtonAttributes("カードで表示")}>${icon("grid", 18)}</button>
+        <button id="archive-view-list" type="button" aria-pressed="false" ${iconButtonAttributes("リストで表示")}>${icon("list", 18)}</button>
       </div>
     </form>
-    ${query.tag ? `<p class="archive-active-tag">タグ #${escapeHtml(query.tag)} で絞り込み中 <a class="text-button" href="${escapeHtml(archivePath(query, { tag: null }))}">外す</a></p>` : ""}
+    ${query.tag ? `<p class="archive-active-tag">タグ #${escapeHtml(query.tag)} で絞り込み中 <a class="icon-button is-small" href="${escapeHtml(archivePath(query, { tag: null }))}" ${iconButtonAttributes("タグの絞り込みを外す")}>${icon("close", 16)}</a></p>` : ""}
     ${tagChips ? `<div class="glossary-index archive-tag-cloud" aria-label="よく出る語">${tagChips}</div>` : ""}
     <ol id="archive-list" class="archive-list is-cards">
 ${result.articles.map((article) => card(article, args.today, query)).join("\n")}

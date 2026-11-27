@@ -2,7 +2,7 @@
 // /bookmarks/view では D1 に残した本文の写しを表示するので、R2 の記事が消えた後も読める。
 import { type TabInfo, displayLabel, tabMeta } from "./content";
 import type { Favorite } from "./favorites";
-import { ICON_URL, icon } from "./icons";
+import { ICON_URL, icon, iconButtonAttributes } from "./icons";
 import { readPath, renderMenu } from "./menu";
 import { formatDayLabel } from "./page";
 import { escapeHtml, thumbnailHtml } from "./render";
@@ -71,7 +71,7 @@ function renderBookmarkCard(favorite: Favorite, today: string): string {
         </a>
         <div class="bookmark-actions">
           <a class="text-button" href="${escapeHtml(readPath(favorite.app, favorite.day, today, favorite.articleId))}">詳細画面で開く</a>
-          <button class="text-button bookmark-remove" type="button">外す</button>
+          <button class="icon-button bookmark-remove" type="button" ${iconButtonAttributes("ブックマークから外す")}>${icon("trash", 18)}</button>
         </div>
       </li>`;
 }
@@ -84,11 +84,11 @@ export function renderBookmarkViewBody(args: {
 }): string {
   const { favorite } = args;
   const link = favorite.link
-    ? `<a class="text-button" href="${escapeHtml(favorite.link)}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a>`
+    ? `<a class="icon-button" href="${escapeHtml(favorite.link)}" target="_blank" rel="noopener noreferrer" ${iconButtonAttributes("元の記事を開く")}>${icon("external", 18)}</a>`
     : "";
   return `${header("ブックマーク")}
   <main class="bookmark-view">
-    <a class="text-button back-link" href="/bookmarks">‹ ブックマーク一覧</a>
+    <a class="icon-button back-link" href="/bookmarks" ${iconButtonAttributes("ブックマーク一覧へ戻る")}>${icon("chevronLeft")}</a>
     <article class="article-view">
       <div class="article-meta">
         <span class="source-chip">${escapeHtml(favorite.source ?? displayLabel(favorite.app))}</span>

@@ -4,7 +4,7 @@ import type { InitialRender, ViewerPage } from "./content";
 import { pageToState } from "./content";
 import type { RenderedArticle } from "./render";
 import { escapeHtml, thumbnailHtml } from "./render";
-import { ICON_URL, icon } from "./icons";
+import { ICON_URL, icon, iconButtonAttributes } from "./icons";
 import { homePath, renderMenu } from "./menu";
 
 export const INDEX_SHELL = {
@@ -61,8 +61,8 @@ export function renderIndexBody(
           <span id="list-tab-label" class="list-tab">${escapeHtml(currentTab?.label ?? "")}</span>
           <span id="list-count" class="list-meta">${initial.articles.length} 件</span>
         </div>
-        <button id="retry-button" class="text-button" type="button">再取得</button>
-        <button id="list-close" class="text-button" type="button" aria-controls="list-panel" aria-expanded="true">${icon("panelClose", 16)}閉じる</button>
+        <button id="retry-button" class="icon-button" type="button" ${iconButtonAttributes("このタブを再取得")}>${icon("refresh", 18)}</button>
+        <button id="list-close" class="icon-button" type="button" ${iconButtonAttributes("記事一覧を閉じる")} aria-controls="list-panel" aria-expanded="true">${icon("panelClose", 18)}</button>
       </div>
       <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
       <ol id="article-list" class="article-list">
@@ -223,7 +223,7 @@ function renderArticleList(articles: RenderedArticle[]): string {
 
 /** お気に入りの切り替えボタン(#14)。押した後の表示は app.js が受け持つ。 */
 export function favoriteButtonHtml(saved: boolean): string {
-  return `<button id="favorite-button" class="text-button favorite-button" type="button" aria-pressed="${saved}">${saved ? "★ 保存済み" : "☆ 保存"}</button>`;
+  return `<button id="favorite-button" class="icon-button favorite-button" type="button" aria-pressed="${saved}" ${iconButtonAttributes(saved ? "ブックマークから外す" : "ブックマークに保存")}>${icon("star", 18)}</button>`;
 }
 
 function renderReader(article: RenderedArticle | null, total: number, saved = false): string {
@@ -231,7 +231,7 @@ function renderReader(article: RenderedArticle | null, total: number, saved = fa
     return '      <div id="reader-empty" class="empty-state reader-empty">表示できる記事がありません。日付やタブを変えてみてください。</div>';
   }
   const link = article.link
-    ? `<a id="source-link" class="text-button" href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a>`
+    ? `<a id="source-link" class="icon-button" href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer" ${iconButtonAttributes("元の記事を開く")}>${icon("external", 18)}</a>`
     : "";
   return `      <article id="article-view" class="article-view" data-article-id="${escapeHtml(article.articleId)}">
         <div class="article-meta">
@@ -241,8 +241,8 @@ function renderReader(article: RenderedArticle | null, total: number, saved = fa
         <div class="article-actions">${link}${favoriteButtonHtml(saved)}<button id="study-open" class="accent-button" type="button">この記事で学ぶ</button></div>
 ${article.image ? `        <figure class="article-hero">${thumbnailHtml(article.image, "hero-image")}</figure>\n` : ""}        <div id="article-body" class="article-body markdown-content">${article.html}</div>
         <div class="article-pager">
-          <button id="prev-article" class="text-button" type="button" disabled>‹ 前の記事</button>
-          <button id="next-article" class="primary-button" type="button"${total > 1 ? "" : " disabled"}>次の記事 ›</button>
+          <button id="prev-article" class="icon-button" type="button" ${iconButtonAttributes("前の記事")} disabled>${icon("chevronLeft")}</button>
+          <button id="next-article" class="icon-button is-primary" type="button" ${iconButtonAttributes("次の記事")}${total > 1 ? "" : " disabled"}>${icon("chevronRight")}</button>
         </div>
       </article>`;
 }
