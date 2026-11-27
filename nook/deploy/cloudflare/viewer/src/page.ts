@@ -53,6 +53,8 @@ export function renderIndexHtml(
       <span class="brand-sep" aria-hidden="true">/</span>
       <span id="current-tab-label" class="brand-tab">${escapeHtml(currentTab?.label ?? "")}</span>
     </a>
+    <a id="settings-link" class="icon-button" href="/settings" aria-label="設定" title="設定">${icon("settings")}</a>
+    <div class="topbar-tools">
     <form id="date-form" class="date-nav" action="/" method="get">
       <button id="prev-day" class="icon-button" type="button" aria-label="前の日">‹</button>
       <label class="date-field">
@@ -71,7 +73,7 @@ export function renderIndexHtml(
       <span class="visually-hidden">この日の記事を絞り込む</span>
       <input id="filter-input" type="search" placeholder="この日の記事を絞り込む" autocomplete="off">
     </label>
-    <a id="settings-link" class="icon-button" href="/settings" aria-label="設定" title="設定">${icon("settings")}</a>
+    </div>
   </header>
 
   <div class="layout">
@@ -100,6 +102,7 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length)}
     </main>
 
     <aside id="study-panel" class="study-panel" aria-labelledby="study-title" hidden>
+      <div class="sheet-grip" aria-hidden="true"></div>
       <div class="study-head">
         <h2 id="study-title">今日の学び</h2>
         <button id="study-close" class="icon-button" type="button" aria-label="学びのパネルを閉じる">×</button>
@@ -117,6 +120,7 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length)}
     </aside>
 
     <aside id="chat-panel" class="study-panel chat-panel" aria-labelledby="chat-title" hidden>
+      <div class="sheet-grip" aria-hidden="true"></div>
       <div class="study-head">
         <h2 id="chat-title">AI に聞く</h2>
         <button id="chat-close" class="icon-button" type="button" aria-label="AI チャットを閉じる">×</button>

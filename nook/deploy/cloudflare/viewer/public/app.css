@@ -70,6 +70,9 @@ button { font: inherit; color: inherit; }
 .brand-name { font-weight: 700; font-size: 17px; }
 .brand-sep { color: #a1a1aa; }
 .brand-tab { font-weight: 600; font-size: 15px; }
+.topbar-tools { display: contents; }
+#settings-link { order: 10; }
+.sheet-grip { display: none; }
 .date-nav { display: flex; align-items: center; gap: 6px; margin: 0; }
 .date-field {
   position: relative; cursor: pointer;
@@ -252,7 +255,11 @@ button { font: inherit; color: inherit; }
 /* スマホ(#28): 一覧と本文を切り替え、学びパネルは下から出すシートにする */
 @media (max-width: 760px) {
   :root { --topbar-h: 0px; }
-  .topbar { position: static; padding: 8px 12px; gap: 8px; }
+  /* 1 段目: メニュー・タブ名・設定、2 段目: 日付と絞り込み。スクロールしても上に残す */
+  .topbar { position: sticky; top: 0; padding: 8px 12px; gap: 8px; }
+  #settings-link { order: 0; }
+  .topbar-tools { display: flex; flex: 1 1 100%; align-items: center; gap: 8px; min-width: 0; }
+  .topbar-tools .filter-field { flex: 1 1 120px; min-width: 0; margin-left: 0; order: 0; height: 40px; }
   .brand { margin-right: auto; gap: 6px; }
   .brand-name, .brand-sep { display: none; }
   .brand-tab { font-size: 16px; font-weight: 700; }
@@ -260,8 +267,9 @@ button { font: inherit; color: inherit; }
   .date-field { padding: 0 10px; }
   .date-field svg { display: none; }
   .date-label { font-size: 14px; }
-  .date-nav .icon-button { width: 40px; }
-  .filter-field { flex-basis: 100%; margin-left: 0; order: 5; height: 40px; }
+  .date-nav .icon-button { width: 40px; height: 40px; }
+  .date-field { height: 40px; }
+  body[data-view="read"] .topbar-tools .date-nav { flex: 1 1 auto; }
   body[data-view="read"] .filter-field { display: none; }
 
   .layout { display: block; min-height: 0; }
@@ -286,11 +294,26 @@ button { font: inherit; color: inherit; }
   .chat-fab { right: 20px; bottom: 88px; }
   body[data-view="list"] .study-fab { display: none; }
   .study-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(24, 24, 27, 0.36); }
+  /* 学びとチャットは下から出すシート。つまみを上下に動かして広げたり閉じたりする */
   .study-panel {
-    top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82vh;
-    border-left: 0; border-radius: 20px 20px 0 0; padding: 16px 16px 24px;
+    top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 62vh; max-height: none;
+    border-left: 0; border-radius: 20px 20px 0 0; padding: 0 16px 24px;
     box-shadow: 0 -8px 32px rgba(24, 24, 27, 0.16);
+    overscroll-behavior: contain; transition: height 0.2s ease, transform 0.2s ease;
   }
+  .study-panel.sheet-full { height: 92vh; }
+  .study-panel.dragging { transition: none; }
+  .sheet-grip {
+    display: block; position: sticky; top: 0; z-index: 1; flex: 0 0 auto;
+    height: 24px; margin: 0 -16px; background: var(--surface); touch-action: none; cursor: grab;
+  }
+  .sheet-grip::after {
+    content: ""; position: absolute; left: 50%; top: 10px; width: 40px; height: 5px;
+    border-radius: 999px; background: #d4d4d8; transform: translateX(-50%);
+  }
+  .study-panel .study-head { touch-action: none; }
+  body.sheet-open { overflow: hidden; }
+  .study-backdrop:not([hidden]) { touch-action: none; }
   .chat-form textarea { font-size: 16px; }
 }
 
