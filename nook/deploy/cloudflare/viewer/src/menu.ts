@@ -3,7 +3,7 @@ import { type TabInfo, TAB_GROUP_ORDER } from "./content";
 import { icon } from "./icons";
 import { escapeHtml } from "./render";
 
-export type MenuPage = "home" | "read" | "bookmarks" | "glossary" | "calendar" | "archive";
+export type MenuPage = "home" | "read" | "bookmarks" | "history" | "glossary" | "calendar" | "archive";
 
 /** 詳細画面の URL。今日の日付は省き、ブックマークしやすい短い形にする。 */
 export function readPath(appName: string, day: string, today: string, articleId?: string): string {
@@ -32,7 +32,7 @@ export function renderMenu(args: { tabs: TabInfo[]; page: MenuPage; day: string;
     <a class="menu-item" href="${escapeHtml(homePath(args.day, args.today))}"${current("home")}>${icon("home")}<span>メイン</span></a>
     <a class="menu-item" href="/bookmarks"${current("bookmarks")}>${icon("bookmark")}<span>ブックマーク</span></a>
     <a class="menu-item" href="/archive"${current("archive")}>${icon("archive")}<span>アーカイブ</span></a>
-${pendingItem("history", "履歴")}
+    <a class="menu-item" href="/history"${current("history")}>${icon("history")}<span>履歴</span></a>
     <button id="genre-toggle" class="menu-item genre-toggle" type="button" aria-expanded="true" aria-controls="tab-groups">${icon("genre")}<span class="menu-label">ジャンル</span><span class="menu-chevron" aria-hidden="true">›</span></button>
     <div id="tab-groups" class="tab-groups">
 ${renderTabGroups(args)}
@@ -43,11 +43,6 @@ ${renderTabGroups(args)}
       <a class="menu-item" href="/settings">${icon("settings")}<span>設定</span></a>
     </div>
   </nav>`;
-}
-
-/** まだ作っていない画面は、押せない項目として「準備中」を添えて出す。 */
-function pendingItem(name: "history", label: string): string {
-  return `    <span class="menu-item is-pending" aria-disabled="true">${icon(name)}<span class="menu-label">${label}</span><span class="menu-badge">準備中</span></span>`;
 }
 
 function renderTabGroups(args: { tabs: TabInfo[]; page: MenuPage; day: string; today: string }): string {

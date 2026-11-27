@@ -218,9 +218,7 @@ button { font: inherit; color: inherit; }
 a.menu-item:hover, button.menu-item:hover { background: var(--bg); color: var(--text-body); }
 .menu-item[aria-current="page"] { background: var(--ink); color: #fff; }
 .menu-item[aria-current="page"]:hover { background: var(--ink); color: #fff; }
-.menu-item.is-pending { color: var(--text-faint); cursor: default; }
 .menu-label { flex: 1; }
-.menu-badge { padding: 2px 8px; border-radius: 999px; background: var(--bg); font-size: 11px; font-weight: 600; color: var(--text-faint); }
 .menu-chevron { display: inline-block; font-size: 20px; color: var(--text-muted); transition: transform 0.15s; }
 .genre-toggle[aria-expanded="true"] .menu-chevron { transform: rotate(90deg); }
 .tab-groups { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px 32px; }
@@ -558,6 +556,15 @@ body.is-leaving::before {
 .bookmark-main .row-title { font-size: 16px; }
 .bookmark-day { font-size: 12px; color: var(--text-muted); }
 .bookmark-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 閲覧履歴(#73)。ブックマークのカードを使い、開いた日ごとに見出しを付ける */
+.history-page .page-title { margin-right: auto; }
+.history-list { display: flex; flex-direction: column; gap: 24px; }
+.history-group { display: flex; flex-direction: column; gap: 10px; }
+.history-card { flex-direction: row; align-items: flex-start; }
+.history-card .bookmark-main { flex: 1; min-width: 0; }
+.history-remove { flex: none; color: var(--text-muted); }
+.history-remove.is-error { color: #b42318; border-color: #b42318; }
+.history-day { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-muted); }
 .bookmark-actions .text-button { text-decoration: none; display: inline-flex; align-items: center; }
 .back-link { align-self: flex-start; text-decoration: none; display: inline-flex; align-items: center; }
 .bookmark-note { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-muted); }

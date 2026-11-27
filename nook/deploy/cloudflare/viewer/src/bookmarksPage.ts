@@ -14,7 +14,7 @@ export function bookmarkViewPath(favorite: Pick<Favorite, "app" | "day" | "artic
   return `/bookmarks/view?${params.toString()}`;
 }
 
-function header(label: string): string {
+export function header(label: string): string {
   return `  <header class="topbar">
     <button id="menu-button" class="icon-button" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="tab-drawer">${icon("menu")}</button>
     <a class="brand" href="/">
@@ -27,7 +27,7 @@ function header(label: string): string {
   </header>`;
 }
 
-function menuTabs(appNames: string[]): TabInfo[] {
+export function menuTabs(appNames: string[]): TabInfo[] {
   // ブックマーク画面ではその日の件数を数えないので、件数の欄は出さない(0 件と誤解させない)
   return appNames.map((appName) => ({
     appName,
