@@ -131,6 +131,8 @@ function startViewer() {
       Object.entries(initial.favorites || {}).map(([appName, ids]) => [appName, new Set(ids)]),
     ),
     pendingFavorites: new Set(),
+    // このページで辞書に追加した用語(app:小文字の語)
+    glossaryAdded: new Set(),
     // 記事ごとの用語と問題(app:article_id → { terms, quiz })。状態は idle / loading / ready / error
     study: {},
   };
@@ -550,6 +552,43 @@ function startViewer() {
     return node;
   }
 
+  // 用語カードから用語辞書(#17)に登録する。出典として記事を記録する
+  function addToGlossaryButton(article, term) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "text-button term-add";
+    const key = `${runtime.currentApp}:${term.word.toLowerCase()}`;
+    const added = runtime.glossaryAdded.has(key);
+    button.textContent = added ? "辞書に追加済み" : "＋ 辞書に追加";
+    button.disabled = added;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "追加しています…";
+      try {
+        const response = await fetch("/api/terms", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            word: term.word,
+            explanation: term.explanation,
+            app: runtime.currentApp,
+            date: runtime.date,
+            article_id: article.article_id,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(String(response.status));
+        }
+        runtime.glossaryAdded.add(key);
+        button.textContent = "辞書に追加済み";
+      } catch {
+        button.disabled = false;
+        button.textContent = "追加できませんでした。もう一度";
+      }
+    });
+    return button;
+  }
+
   function renderTerms(article) {
     if (!article) {
       el.termList.replaceChildren();
@@ -582,7 +621,7 @@ function startViewer() {
         const text = document.createElement("span");
         text.className = "term-text";
         text.textContent = term.explanation;
-        card.append(word, text);
+        card.append(word, text, addToGlossaryButton(article, term));
         return card;
       }),
     );
