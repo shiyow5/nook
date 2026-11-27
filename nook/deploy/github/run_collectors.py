@@ -4,7 +4,10 @@ import sys
 import time
 import traceback
 from collections.abc import Callable, Sequence
+from datetime import date
+from pathlib import Path
 
+from nook.deploy.github.notify import notify_collection
 from nook.services.catalog import get_service_definition
 from nook.services.collector_settings import SettingsMode, apply_collector_settings
 from nook.services.registry import run_collector
@@ -80,8 +83,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    names = resolve_collector_names(parse_collector_names(args[0]), dict(os.environ))
+    env = dict(os.environ)
+    names = resolve_collector_names(parse_collector_names(args[0]), env)
     failed = run_collectors(names)
+    sent = notify_collection(
+        names=names,
+        failed=failed,
+        env=env,
+        backend_factory=build_storage_backend,
+        day=date.today(),
+    )
+    if sent and env.get("RUNNER_TEMP"):
+        # ワークフローの失敗時の通知(collect.yml)が同じ内容を重ねて送らないための印
+        Path(env["RUNNER_TEMP"], "nook-notified").touch()
     if failed:
         _log(event="collectors_failed", collectors=failed)
         return 1

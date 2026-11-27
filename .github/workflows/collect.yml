@@ -67,4 +67,20 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
           PRODUCT_HUNT_API_KEY: ${{ secrets.PRODUCT_HUNT_API_KEY }}
           PRODUCT_HUNT_DEVELOPER_TOKEN: ${{ secrets.PRODUCT_HUNT_DEVELOPER_TOKEN }}
+          # 収集の結果を Discord に送る(#22)。未登録なら送らない
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          NOOK_VIEWER_URL: ${{ vars.NOOK_VIEWER_URL }}
         run: uv run --no-sync python -m nook.deploy.github.run_collectors "$COLLECTORS"
+
+      # 依存のインストールなど、collector より前で落ちたときも知らせる(#22)
+      - name: Notify failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # 未登録のとき、collector の失敗を Python 側ですでに知らせたときは送らない
+          if [ -z "$DISCORD_WEBHOOK_URL" ] || [ -f "$RUNNER_TEMP/nook-notified" ]; then exit 0; fi
+          curl -sS -o /dev/null -X POST -H "Content-Type: application/json" \
+            --data "{\"content\":\"⚠️ nook の収集ジョブが失敗しました <${RUN_URL}>\",\"allowed_mentions\":{\"parse\":[]}}" \
+            "$DISCORD_WEBHOOK_URL" || true
