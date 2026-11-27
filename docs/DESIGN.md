@@ -11,6 +11,8 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
   - 保存先は `S3StorageBackend` を `NOOK_S3_ENDPOINT_URL` / `NOOK_S3_REGION` で R2 に向けたもの。runner は `TZ=Asia/Tokyo` で動かし、日付を JST に揃える。
   - viewer は `nook/deploy/cloudflare/viewer/` の TypeScript Worker。R2 binding から Markdown と state を読み書きし、画面の `public/app.js` / `public/app.css` は Workers static assets として `/static/*` で配信する(Python 版の `viewer.js` / `viewer.css` とは別のファイル)。API の形は Python 版と同じで、天気 API は持たない。
   - 画面は Design キャンバスの A+B 案(#6)。ヘッダーにハンバーガーメニュー(タブを国内・海外・論文に分類)、日付(`type="date"`、今日より先は選べない)、その日の記事の絞り込み。下は閉じられる記事一覧(1 記事 1 行、出典名と題名)と、1 本ずつ表示する本文。右下の丸いボタンで「今日の学び」パネル(記事ごとの AI チャットと定型の質問)を開く。幅 760px 以下では一覧と本文を `body[data-view]` で切り替え、学びパネルは下から出すシートにする(#28)。記事一覧と学びパネルの開閉は localStorage に覚え、開いているタブと日付は URL の `tab` / `date` に入れる。
+  - 設定画面(`/settings`、#7)は収集のオンとオフ、TechNews 系(tech_news / jp_tech_news / arxiv_news)のフィード・キーワード・1 フィードあたりの上限を編集する。保存先は R2 の `_state/_settings/settings.json` で、初期値と違う部分だけを書く。`POST /api/settings` は同一オリジンだけを受け付け、`settings.ts` の `validateSettings` で URL(http / https)、文字数、件数、重複を検証する。
+  - collector 側は `nook/services/collector_settings.py` が同じ JSON を読む。`run_collectors` は起動時に TOML から作った初期値を `_state/_settings/defaults.json` に書き、設定画面はそれを表示の元にする。予定実行(`NOOK_COLLECTOR_SETTINGS=apply`)では止めた collector を外し、collector を指定した手動実行(`publish`)ではそのまま動かす。R2 の 90 日の自動削除で消えないよう、収集のたびに settings.json を書き直す。設定が壊れていたら警告を出して TOML の値で収集を続ける。
   - 出典名と元記事の URL は、collector が記事に入れる `[View on <フィード名>](URL)` などのリンクから `render.ts` の `extractSourceLink` が取り出す。
   - chat は Gemini generateContent を `google_search` tool 付きで呼ぶ。retry は GitHub の workflow_dispatch を `collectors=<service>` で呼ぶ。
   - Worker は全リクエストで Cloudflare Access の JWT(`Cf-Access-Jwt-Assertion`)を検証し、`ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` が未設定なら拒否する。

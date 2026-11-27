@@ -66,7 +66,7 @@ gh variable set NOOK_ENABLED_COLLECTORS \
   --body hacker_news,paper_summarizer,arxiv_news,reddit_explorer,tech_feed,github_trending,tech_news,jp_tech_news
 ```
 
-`NOOK_ENABLED_COLLECTORS` は毎日の cron で実行する collector です。
+`NOOK_ENABLED_COLLECTORS` は毎日の cron で実行する collector です。ここに入れた collector のうち、画面の設定画面で止めたものは予定実行で動きません。
 
 - `product_hunt` は認証情報を登録してから追加します。
 - `google_alerts` は `configs/google_alerts/google_alerts.toml` に自分の RSS URL を書いてから追加します。

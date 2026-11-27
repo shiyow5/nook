@@ -1,11 +1,14 @@
 import json
+import os
 import sys
 import time
 import traceback
 from collections.abc import Callable, Sequence
 
 from nook.services.catalog import get_service_definition
+from nook.services.collector_settings import SettingsMode, apply_collector_settings
 from nook.services.registry import run_collector
+from nook.services.storage import StorageBackend, build_storage_backend
 
 CollectorRunnerFn = Callable[[str], None]
 
@@ -45,6 +48,29 @@ def run_collectors(
     return failed
 
 
+def resolve_collector_names(
+    names: Sequence[str],
+    env: dict[str, str],
+    backend_factory: Callable[[dict[str, str]], StorageBackend] = build_storage_backend,
+) -> list[str]:
+    """NOOK_COLLECTOR_SETTINGS が apply / publish のとき、画面の設定(#7)を反映する。
+
+    apply は予定実行用で、設定画面で止めた collector を外す。publish は手動実行用で、
+    指定された collector はそのまま動かし、設定画面用の既定値だけ書き出す。
+    """
+    mode = env.get("NOOK_COLLECTOR_SETTINGS", "").strip()
+    if not mode:
+        return list(names)
+    if mode not in ("apply", "publish"):
+        raise ValueError("NOOK_COLLECTOR_SETTINGS must be apply or publish")
+    scheduled_raw = env.get("NOOK_SCHEDULED_COLLECTORS", "").strip()
+    scheduled = parse_collector_names(scheduled_raw) if scheduled_raw else list(names)
+    settings_mode: SettingsMode = "apply" if mode == "apply" else "publish"
+    return apply_collector_settings(
+        names, backend_factory(env), mode=settings_mode, scheduled=scheduled
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 1:
@@ -54,7 +80,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    failed = run_collectors(parse_collector_names(args[0]))
+    names = resolve_collector_names(parse_collector_names(args[0]), dict(os.environ))
+    failed = run_collectors(names)
     if failed:
         _log(event="collectors_failed", collectors=failed)
         return 1

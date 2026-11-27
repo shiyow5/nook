@@ -12,6 +12,11 @@ import {
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
 import { dispatchCollectorWorkflow } from "./github";
 import { renderIndexHtml } from "./page";
+import { loadSettingsState, saveSettings } from "./settings";
+import { renderSettingsHtml } from "./settingsPage";
+
+/** 設定は数十件のフィードでも数十 KB なので、それより大きい本文は受け付けない。 */
+const MAX_SETTINGS_BODY_BYTES = 256 * 1024;
 
 export type AppDeps = {
   fetch: FetchFn;
@@ -61,6 +66,10 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
     );
   }
 
+  if (method === "GET" && path === "/settings") {
+    return renderSettings(env);
+  }
+
   const markdownMatch = /^\/api\/markdown\/([^/]+)$/.exec(path);
   if (method === "GET" && markdownMatch) {
     return readMarkdown(env, decodePathParam(markdownMatch[1]), url, deps);
@@ -71,6 +80,9 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   const chatMatch = /^\/chat\/([^/]+)$/.exec(path);
   if (method === "POST" && chatMatch) {
     return chat(env, decodePathParam(chatMatch[1]), request, deps);
+  }
+  if (method === "POST" && path === "/api/settings") {
+    return updateSettings(env, request, deps);
   }
   const retryMatch = /^\/retry\/([^/]+)$/.exec(path);
   if (method === "POST" && retryMatch) {
@@ -105,6 +117,34 @@ async function renderIndex(env: NookEnv, day: string, requestedApp: string | nul
   return new Response(html, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
+}
+
+async function renderSettings(env: NookEnv): Promise<Response> {
+  const state = await loadSettingsState(env.NOOK_BUCKET);
+  const html = renderSettingsHtml(state, viewerServiceNames(env), assetVersion(env));
+  return new Response(html, {
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+async function updateSettings(env: NookEnv, request: Request, deps: AppDeps): Promise<Response> {
+  const length = Number(request.headers.get("content-length") ?? "0");
+  if (length > MAX_SETTINGS_BODY_BYTES) {
+    throw new HttpError(413, "設定が大きすぎます");
+  }
+  const body = await request.text();
+  if (new TextEncoder().encode(body).byteLength > MAX_SETTINGS_BODY_BYTES) {
+    throw new HttpError(413, "設定が大きすぎます");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    throw new HttpError(400, "Request body must be JSON");
+  }
+  const saved = await saveSettings(env.NOOK_BUCKET, payload, deps.now());
+  logEvent("info", { event: "settings_saved", updated_at: saved.updated_at });
+  return Response.json({ settings: saved }, { headers: { "cache-control": "no-store" } });
 }
 
 async function readMarkdown(env: NookEnv, appName: string, url: URL, deps: AppDeps): Promise<Response> {

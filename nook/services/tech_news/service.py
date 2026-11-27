@@ -13,6 +13,7 @@ import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
 
+from nook.services.collector_settings import RssSettings, load_settings
 from nook.services.collector_storage import CollectorStorage
 from nook.services.config import load_service_toml
 from nook.services.llm_client import create_client
@@ -72,7 +73,20 @@ class TechNews:
             backend=build_storage_backend(os.environ),
         )
         self._threshold = datetime.now() - timedelta(days=Config.threshold_days)
-        self._feeds = Config.load_feeds(self.SERVICE_NAME)
+        rss_settings = self._rss_settings()
+        if rss_settings is None:
+            self._feeds = Config.load_feeds(self.SERVICE_NAME)
+            self._max_entries_per_feed = Config.max_entries_per_feed
+        else:
+            self._feeds = [
+                FeedConfig.model_validate(feed.model_dump())
+                for feed in rss_settings.feeds
+            ]
+            self._max_entries_per_feed = rss_settings.max_entries_per_feed
+
+    def _rss_settings(self) -> RssSettings | None:
+        settings = load_settings(self._storage.backend)
+        return settings.rss.get(self.SERVICE_NAME) if settings else None
 
     def __call__(self) -> None:
         markdowns = []
@@ -95,11 +109,11 @@ class TechNews:
                         f"Manual parsing found {len(entries)} entries for {feed_config.name}"
                     )
 
-            if len(entries) > Config.max_entries_per_feed:
+            if len(entries) > self._max_entries_per_feed:
                 print(
-                    f"Limiting entries for {feed_config.name} from {len(entries)} to {Config.max_entries_per_feed}",
+                    f"Limiting entries for {feed_config.name} from {len(entries)} to {self._max_entries_per_feed}",
                 )
-                entries = entries[: Config.max_entries_per_feed]
+                entries = entries[: self._max_entries_per_feed]
 
             print(f"Found {len(entries)} relevant entries for {feed_config.name}.")
             for entry in entries:
