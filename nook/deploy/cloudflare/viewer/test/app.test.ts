@@ -433,13 +433,13 @@ describe("home screen (#56)", () => {
     expect(state.articles.find((article: { label: string }) => article.label === "国内")).toMatchObject({ app_name: "jp_tech_news", label: "国内", title: "国内の一本目" });
   });
 
-  it("uses the new menu with history and the glossary marked as 準備中", async () => {
+  it("uses the new menu with history marked as 準備中", async () => {
     const { deps } = buildDeps();
 
     const home = await (await handleRequest(request(`/?date=${homeDay}`), testEnv(), deps)).text();
     const read = await (await handleRequest(request(`/read?date=${homeDay}&tab=tech_news`), testEnv(), deps)).text();
 
-    for (const label of ["履歴", "用語辞書"]) {
+    for (const label of ["履歴"]) {
       expect(home).toMatch(new RegExp(`aria-disabled="true">.*${label}.*準備中`));
     }
     expect(home).toMatch(/class="menu-item" href="\/\?date=2026-11-20" aria-current="page"/);

@@ -108,13 +108,14 @@ export function parseQuiz(value: unknown): QuizQuestion[] {
   });
 }
 
-export async function generateStudy(args: {
-  kind: StudyKind;
-  markdown: string;
+/** Gemini に JSON(responseSchema の形)で答えさせ、解析した値を返す。 */
+export async function generateJson(args: {
+  prompt: string;
+  schema: unknown;
   apiKey: string;
   llmModel: string;
   fetchFn: FetchFn;
-}): Promise<Term[] | QuizQuestion[]> {
+}): Promise<unknown> {
   const model = resolveGeminiModel(args.llmModel);
   const response = await args.fetchFn(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
@@ -122,8 +123,8 @@ export async function generateStudy(args: {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": args.apiKey },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: buildStudyPrompt(args.kind, args.markdown) }] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMAS[args.kind] },
+        contents: [{ role: "user", parts: [{ text: args.prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: args.schema },
       }),
     },
   );
@@ -132,11 +133,26 @@ export async function generateStudy(args: {
   }
   const payload = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const text = (payload.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join("");
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new UpstreamError("Gemini API returned invalid JSON");
   }
+}
+
+export async function generateStudy(args: {
+  kind: StudyKind;
+  markdown: string;
+  apiKey: string;
+  llmModel: string;
+  fetchFn: FetchFn;
+}): Promise<Term[] | QuizQuestion[]> {
+  const parsed = await generateJson({
+    prompt: buildStudyPrompt(args.kind, args.markdown),
+    schema: SCHEMAS[args.kind],
+    apiKey: args.apiKey,
+    llmModel: args.llmModel,
+    fetchFn: args.fetchFn,
+  });
   return args.kind === "terms" ? parseTerms(parsed) : parseQuiz(parsed);
 }

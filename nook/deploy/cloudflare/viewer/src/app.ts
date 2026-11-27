@@ -13,6 +13,17 @@ import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "
 import { BOOKMARKS_SHELL, renderBookmarksBody, renderBookmarkViewBody } from "./bookmarksPage";
 import { addFavorite, favoriteIdsForDay, getFavorite, listFavorites, removeFavorite } from "./favorites";
 import { dispatchCollectorWorkflow } from "./github";
+import {
+  addTerm,
+  deleteTerm,
+  draftTerm,
+  listTerms,
+  parseTermInput,
+  parseTermPatch,
+  termToState,
+  updateTerm,
+} from "./glossary";
+import { GLOSSARY_SHELL, renderGlossaryBody } from "./glossaryPage";
 import { buildHomeData, HOME_SHELL, renderHomeBody } from "./home";
 import { INDEX_SHELL, renderIndexBody } from "./page";
 import { loadingMessage, renderShellHead, streamPage } from "./shell";
@@ -83,6 +94,9 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   if (method === "GET" && path === "/settings") {
     return renderSettings(env);
   }
+  if (method === "GET" && path === "/glossary") {
+    return renderGlossary(env, todayInJapan(deps.now()), url);
+  }
   if (method === "GET" && path === "/bookmarks") {
     return renderBookmarks(env, todayInJapan(deps.now()), url);
   }
@@ -96,6 +110,21 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
   }
   if (method !== "GET" && method !== "HEAD") {
     ensureSameOrigin(request, url);
+  }
+  if (method === "POST" && path === "/api/terms") {
+    return Response.json({ term: termToState(await addTerm(env.DB, parseTermInput(await readJson(request)), deps.now())) });
+  }
+  if (method === "POST" && path === "/api/terms/draft") {
+    return draftGlossaryTerm(env, request, deps);
+  }
+  const termMatch = /^\/api\/terms\/(\d+)$/.exec(path);
+  if (method === "PATCH" && termMatch) {
+    const patch = parseTermPatch(await readJson(request));
+    return Response.json({ term: termToState(await updateTerm(env.DB, Number(termMatch[1]), patch, deps.now())) });
+  }
+  if (method === "DELETE" && termMatch) {
+    await deleteTerm(env.DB, Number(termMatch[1]));
+    return Response.json({ deleted: true });
   }
   const favoriteMatch = /^\/api\/favorites\/([^/]+)$/.exec(path);
   if ((method === "PUT" || method === "DELETE") && favoriteMatch) {
@@ -161,6 +190,38 @@ function renderHome(env: NookEnv, day: string, today: string, url: URL): Respons
     async () => renderHomeBody(buildHomeData(await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day), today)),
     `${url.pathname}${url.search}`,
   );
+}
+
+function renderGlossary(env: NookEnv, today: string, url: URL): Response {
+  const head = renderShellHead({ ...GLOSSARY_SHELL, version: assetVersion(env), loadingMessage: "用語辞書を読み込んでいます" });
+  return streamPage(
+    head,
+    async () => renderGlossaryBody({ terms: await listTerms(env.DB), appNames: viewerServiceNames(env), today }),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw new HttpError(400, "Request body must be JSON");
+  }
+}
+
+async function draftGlossaryTerm(env: NookEnv, request: Request, deps: AppDeps): Promise<Response> {
+  const { word } = ((await readJson(request)) ?? {}) as Record<string, unknown>;
+  if (typeof word !== "string" || !word.trim() || word.length > 80) {
+    throw new HttpError(400, "下書きする用語を 80 字以内で指定してください");
+  }
+  const draft = await draftTerm({
+    word: word.trim(),
+    bucket: env.NOOK_BUCKET,
+    apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
+    llmModel: env.LLM_MODEL,
+    fetchFn: deps.fetch,
+  });
+  return Response.json(draft);
 }
 
 function renderBookmarks(env: NookEnv, today: string, url: URL): Response {

@@ -3,7 +3,7 @@ import { type TabInfo, TAB_GROUP_ORDER } from "./content";
 import { icon } from "./icons";
 import { escapeHtml } from "./render";
 
-export type MenuPage = "home" | "read" | "bookmarks";
+export type MenuPage = "home" | "read" | "bookmarks" | "glossary";
 
 /** 詳細画面の URL。今日の日付は省き、ブックマークしやすい短い形にする。 */
 export function readPath(appName: string, day: string, today: string, articleId?: string): string {
@@ -37,14 +37,14 @@ ${pendingItem("history", "履歴")}
 ${renderTabGroups(args)}
     </div>
     <div class="menu-footer">
-${pendingItem("glossary", "用語辞書")}
+      <a class="menu-item" href="/glossary"${current("glossary")}>${icon("glossary")}<span>用語辞書</span></a>
       <a class="menu-item" href="/settings">${icon("settings")}<span>設定</span></a>
     </div>
   </nav>`;
 }
 
 /** まだ作っていない画面は、押せない項目として「準備中」を添えて出す。 */
-function pendingItem(name: "history" | "glossary", label: string): string {
+function pendingItem(name: "history", label: string): string {
   return `    <span class="menu-item is-pending" aria-disabled="true">${icon(name)}<span class="menu-label">${label}</span><span class="menu-badge">準備中</span></span>`;
 }
 
