@@ -1161,6 +1161,13 @@ function startViewer() {
   if (requestedIndex >= 0 && narrow.matches) {
     runtime.view = "read";
   }
+  // 記事中の語を選んで辞書に登録する処理(selection.js、#16)が、今の記事を知るための口
+  window.nookReader = {
+    currentArticle() {
+      const article = currentArticle();
+      return article ? { app: runtime.currentApp, date: runtime.date, article_id: article.article_id } : null;
+    },
+  };
   render();
 }
 

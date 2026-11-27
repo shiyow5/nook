@@ -8,7 +8,7 @@ import { ICON_URL, icon } from "./icons";
 import { homePath, renderMenu } from "./menu";
 
 export const INDEX_SHELL = {
-  scripts: ["menu.js", "app.js"],
+  scripts: ["menu.js", "app.js", "selection.js"],
   extraStyles: ["https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"],
   bodyAttributes: 'data-view="list"',
 };
@@ -116,6 +116,26 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)
       </form>
     </aside>
   </div>
+
+  <div id="selection-popup" class="selection-popup" role="toolbar" aria-label="選んだ語を辞書に登録" hidden>
+    <button type="button" data-mode="term">辞書に登録</button>
+    <button type="button" data-mode="important">⭐ 重要</button>
+    <button type="button" data-mode="note">メモ</button>
+  </div>
+  <dialog id="term-dialog" class="term-dialog" aria-labelledby="term-dialog-title">
+    <form id="term-dialog-form" method="dialog" class="term-form">
+      <h2 id="term-dialog-title" class="term-form-wide">用語辞書に登録</h2>
+      <label class="term-form-wide">用語<input id="dialog-word" name="word" required maxlength="80" autocomplete="off"></label>
+      <label class="term-form-wide">説明<textarea id="dialog-explanation" name="explanation" required maxlength="1000" rows="4"></textarea></label>
+      <label class="term-form-wide">メモ(任意)<textarea id="dialog-note" name="note" maxlength="2000" rows="2"></textarea></label>
+      <label class="term-check"><input id="dialog-important" name="important" type="checkbox"> 重要</label>
+      <p id="dialog-status" class="status-message term-form-wide" role="status" aria-live="polite"></p>
+      <div class="term-form-actions">
+        <button id="dialog-cancel" class="text-button" type="button">やめる</button>
+        <button id="dialog-save" class="primary-button" type="submit">登録</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="study-backdrop" class="study-backdrop" hidden></div>
   <button id="chat-fab" class="study-fab chat-fab" type="button" aria-label="AI チャットを開く" aria-controls="chat-panel" aria-expanded="false" title="AI に聞く">${icon("chat", 24)}</button>

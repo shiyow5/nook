@@ -620,3 +620,16 @@ body.is-leaving::before {
   .glossary-main { padding: 20px 16px 48px; }
   .term-form { grid-template-columns: 1fr; }
 }
+
+/* 記事中の語を選んで辞書に登録(#16) */
+.selection-popup {
+  position: fixed; z-index: 40; display: flex; gap: 2px; padding: 4px; border-radius: 12px;
+  background: var(--ink); box-shadow: 0 8px 24px rgba(24, 24, 27, 0.24);
+}
+.selection-popup button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.selection-popup button:hover { background: rgba(255, 255, 255, 0.14); }
+.selection-popup.is-docked { left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); justify-content: space-around; }
+.term-dialog { width: min(560px, calc(100vw - 32px)); padding: 20px; border: 0; border-radius: 16px; box-shadow: 0 16px 48px rgba(24, 24, 27, 0.24); }
+.term-dialog::backdrop { background: rgba(24, 24, 27, 0.36); }
+.term-dialog h2 { margin: 0; font-size: 18px; }
+.term-dialog .term-form { margin-top: 0; }
