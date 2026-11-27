@@ -6,10 +6,10 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // viewer.js / viewer.css は Python 版と同じファイルを配信する。
+  // 読む画面の app.js / app.css(Python 版のローカル閲覧画面とは別のファイル)。
   // run_worker_first により静的ファイルも Access JWT の検証を通す。
   "assets": {
-    "directory": "../../../services/viewer/static",
+    "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": true
   },

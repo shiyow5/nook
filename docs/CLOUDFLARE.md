@@ -10,7 +10,7 @@ GitHub Actions(毎日 06:17 JST の cron / 手動実行)
        └─ Markdown と state を R2(S3 互換 API)へ保存
 
 Cloudflare Worker「nook-viewer」(*.workers.dev、Cloudflare Access で保護)
-  ├─ R2 を読んで画面を返す(viewer.js / viewer.css は Python 版と共通)
+  ├─ R2 を読んで画面を返す(app.js / app.css は nook/deploy/cloudflare/viewer/public/)
   ├─ /chat/{app}  : Gemini API を Google 検索付きで呼ぶ
   └─ /retry/{app} : GitHub Actions の workflow_dispatch で collector を 1 件だけ再実行
 ```

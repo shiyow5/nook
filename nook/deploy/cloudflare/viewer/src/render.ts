@@ -10,7 +10,14 @@ export type RenderedArticle = {
   title: string;
   html: string;
   headings: Heading[];
+  /** 記事一覧に出す情報源の名前(例: Zenn Trending)。見つからなければ null。 */
+  source: string | null;
+  /** 元記事の URL。見つからなければ null。 */
+  link: string | null;
 };
+
+// collector は各記事に「[View on <フィード名>](URL)」か「[View Link](URL)」などを入れている
+const VIEW_LINK_PATTERN = /\[View(?: on ([^\]]+)|[^\]]*)\]\((https?:\/\/[^)\s]+)\)/;
 
 const DANGEROUS_TAGS = new Set(["script", "style", "iframe", "object", "embed", "link", "meta"]);
 const ALLOWED_ATTRIBUTES: Record<string, ReadonlySet<string>> = {
@@ -29,7 +36,7 @@ export async function renderArticle(state: ArticleState, renderIndex: number): P
     const headingTexts = await collectHeadingTexts(sanitizedHtml);
     const headings = buildHeadings(headingTexts, `${state.articleId}-${renderIndex}`);
     const html = await transform(sanitizedHtml, headingIdRewriter(headings));
-    return { articleId: state.articleId, title: state.title, html, headings };
+    return { articleId: state.articleId, title: state.title, html, headings, ...extractSourceLink(state.markdown) };
   } catch (error) {
     logEvent("error", {
       event: "article_render_failed",
@@ -41,7 +48,24 @@ export async function renderArticle(state: ArticleState, renderIndex: number): P
       title: state.title,
       html: `<pre>${escapeHtml(state.markdown)}</pre>`,
       headings: [],
+      ...extractSourceLink(state.markdown),
     };
+  }
+}
+
+export function extractSourceLink(markdown: string): { source: string | null; link: string | null } {
+  const match = VIEW_LINK_PATTERN.exec(markdown);
+  if (!match) {
+    return { source: null, link: null };
+  }
+  const [, feedName, link] = match;
+  if (feedName?.trim()) {
+    return { source: feedName.trim(), link };
+  }
+  try {
+    return { source: new URL(link).hostname.replace(/^www\./, ""), link };
+  } catch {
+    return { source: null, link };
   }
 }
 
