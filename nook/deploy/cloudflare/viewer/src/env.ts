@@ -1,5 +1,7 @@
 export interface NookEnv {
   NOOK_BUCKET: R2Bucket;
+  /** 学習データ(migrations/ のテーブル)。 */
+  DB: D1Database;
   ASSETS: Fetcher;
   CF_VERSION_METADATA?: WorkerVersionMetadata;
   LLM_MODEL: string;
