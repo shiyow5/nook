@@ -3,7 +3,7 @@ import { type TabInfo, TAB_GROUP_ORDER } from "./content";
 import { icon } from "./icons";
 import { escapeHtml } from "./render";
 
-export type MenuPage = "home" | "read" | "bookmarks" | "glossary" | "calendar";
+export type MenuPage = "home" | "read" | "bookmarks" | "glossary" | "calendar" | "archive";
 
 /** 詳細画面の URL。今日の日付は省き、ブックマークしやすい短い形にする。 */
 export function readPath(appName: string, day: string, today: string, articleId?: string): string {
@@ -31,6 +31,7 @@ export function renderMenu(args: { tabs: TabInfo[]; page: MenuPage; day: string;
     </div>
     <a class="menu-item" href="${escapeHtml(homePath(args.day, args.today))}"${current("home")}>${icon("home")}<span>メイン</span></a>
     <a class="menu-item" href="/bookmarks"${current("bookmarks")}>${icon("bookmark")}<span>ブックマーク</span></a>
+    <a class="menu-item" href="/archive"${current("archive")}>${icon("archive")}<span>アーカイブ</span></a>
 ${pendingItem("history", "履歴")}
     <button id="genre-toggle" class="menu-item genre-toggle" type="button" aria-expanded="true" aria-controls="tab-groups">${icon("genre")}<span class="menu-label">ジャンル</span><span class="menu-chevron" aria-hidden="true">›</span></button>
     <div id="tab-groups" class="tab-groups">

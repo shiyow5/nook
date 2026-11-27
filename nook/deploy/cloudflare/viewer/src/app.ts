@@ -10,6 +10,8 @@ import {
   viewerServiceNames,
 } from "./content";
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
+import { parseArchiveQuery, runArchiveIndexing, searchArchive } from "./archive";
+import { ARCHIVE_SHELL, renderArchiveBody } from "./archivePage";
 import { computeStats, countByDay, parseMonth, sessionsOnDay } from "./calendar";
 import { CALENDAR_SHELL, renderCalendarBody } from "./calendarPage";
 import { BOOKMARKS_SHELL, renderBookmarksBody, renderBookmarkViewBody } from "./bookmarksPage";
@@ -55,6 +57,8 @@ export type AppDeps = {
   fetch: FetchFn;
   verifyAccess: (request: Request, env: NookEnv) => Promise<boolean>;
   now: () => Date;
+  /** 応答を返した後も続けたい処理(ctx.waitUntil)。テストでは省略してよい。 */
+  background?: (promise: Promise<unknown>) => void;
 };
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -109,6 +113,9 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
 
   if (method === "GET" && path === "/settings") {
     return renderSettings(env);
+  }
+  if (method === "GET" && path === "/archive") {
+    return renderArchive(env, url, deps);
   }
   if (method === "GET" && path === "/calendar") {
     return renderCalendar(env, url, deps);
@@ -211,6 +218,24 @@ function renderHome(env: NookEnv, day: string, today: string, url: URL): Respons
   return streamPage(
     head,
     async () => renderHomeBody(buildHomeData(await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day), today)),
+    `${url.pathname}${url.search}`,
+  );
+}
+
+function renderArchive(env: NookEnv, url: URL, deps: AppDeps): Response {
+  const today = todayInJapan(deps.now());
+  const appNames = viewerServiceNames(env);
+  const query = parseArchiveQuery(url, appNames);
+  // 開くたびに今日と昨日の分を(変わっていれば)入れ直し、過去の日も少し埋める。表示は待たない
+  deps.background?.(
+    runArchiveIndexing({ db: env.DB, bucket: env.NOOK_BUCKET, appNames, today, now: deps.now() }).catch((error) =>
+      logEvent("warn", { event: "archive_index_failed", error: String(error) }),
+    ),
+  );
+  const head = renderShellHead({ ...ARCHIVE_SHELL, version: assetVersion(env), loadingMessage: "過去の記事を探しています" });
+  return streamPage(
+    head,
+    async () => renderArchiveBody({ query, result: await searchArchive(env.DB, query), appNames, today }),
     `${url.pathname}${url.search}`,
   );
 }
