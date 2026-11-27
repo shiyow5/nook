@@ -8,10 +8,10 @@ from datetime import date, timedelta
 
 import arxiv
 import requests
-from bs4 import BeautifulSoup
 from pydantic import BaseModel
 from tqdm import tqdm
 
+from nook.services.arxiv_html import ARXIV_HTML_URL, extract_body_text
 from nook.services.collector_storage import CollectorStorage
 from nook.services.llm_client import create_client
 from nook.services.paper_summarizer.summary_schema import (
@@ -218,64 +218,10 @@ class PaperSummarizer:
         )
         self._storage.write_state(state_key, "\n".join(new_arxiv_ids))
 
-    def _is_valid_body_line(self, line: str, min_length: int = 80):
-        """本文として妥当な行かを判断するための簡易ヒューリスティック。
-        ・行の長さが十分（例: 80文字以上）
-        ・メールアドレス（@）が含まれない
-        ・「Corresponding Author」や「University」「Lab」などのキーワードを含まない
-        ・かつ、文として終わる（ピリオドが含まれている）場合を優先
-        """
-        if "@" in line:
-            return False
-        for kw in [
-            "university",
-            "lab",
-            "department",
-            "institute",
-            "corresponding author",
-        ]:
-            if kw in line.lower():
-                return False
-        if len(line) < min_length:
-            return False
-        return "." in line
-
-    def _extract_body_text(self, arxiv_id: str, min_line_length: int = 40):
-        response = requests.get(f"https://arxiv.org/html/{arxiv_id}")
+    def _extract_body_text(self, arxiv_id: str) -> str:
+        response = requests.get(ARXIV_HTML_URL.format(arxiv_id=arxiv_id))
         response.encoding = response.apparent_encoding
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        body = soup.body
-        if body:
-            for tag in body.find_all(["header", "nav", "footer", "script", "style"]):
-                tag.decompose()
-            full_text = body.get_text(separator="\n", strip=True)
-        else:
-            full_text = ""
-
-        lines = full_text.splitlines()
-
-        # ヒューリスティックにより、実際の論文本文の開始行を探す
-        start_index = 0
-        for i, line in enumerate(lines):
-            clean_line = line.strip()
-            # 先頭部分の空行や短すぎる行はスキップ
-            if len(clean_line) < min_line_length:
-                continue
-            if self._is_valid_body_line(clean_line, min_length=100):
-                start_index = i
-                break
-
-        # 開始行以降を本文として抽出
-        body_lines = lines[start_index:]
-        # ノイズ除去: 短すぎる行は除外
-        filtered_lines = []
-        for line in body_lines:
-            if len(line.strip()) >= min_line_length:
-                line = line.strip()
-                line = line.replace("Â", " ")
-                filtered_lines.append(line.strip())
-        return "\n".join(filtered_lines)
+        return extract_body_text(response.text)
 
     @property
     def _system_instruction_format(self) -> str:

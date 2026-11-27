@@ -68,7 +68,7 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
 - `nook/services/jp_tech_news/service.py`
   - `TechNews` の `SERVICE_NAME` だけを `jp_tech_news` に変えた subclass。設定は `configs/jp_tech_news/feed.toml` から読み、viewer の「国内」タブに出る。
 - `nook/services/arxiv_news/service.py`
-  - `TechNews` の subclass。`configs/arxiv_news/feed.toml` の arXiv RSS(cs.CL / cs.LG / cs.AI)をキーワードで絞り、`arxiv_announce_type` が `new` / `cross` の論文だけを要約する。論文ページのアブストラクトは `<blockquote>` にあり汎用の本文抽出では拾えないため、ページは取得せず RSS の `Abstract:` 以降を本文として LLM に渡す。`paper_summarizer` が直近 7 日に保存した `arxiv_ids-<date>.txt` の論文は処理済みとして扱い、Papers タブと重複させない。
+  - `TechNews` の subclass。`configs/arxiv_news/feed.toml` の arXiv RSS(cs.CL / cs.LG / cs.AI)をキーワードで絞り、`arxiv_announce_type` が `new` / `cross` の論文だけを要約する。abs ページのアブストラクトは `<blockquote>` にあり汎用の本文抽出では拾えないため、RSS の `Abstract:` 以降と、HTML 版(`https://arxiv.org/html/<id>`)の本文をこの順につないで LLM に渡す(上限 25,000 字)。HTML 版が無い論文はアブストラクトだけで要約する。本文の抽出は `nook/services/arxiv_html.py` にあり、paper_summarizer と共通。`paper_summarizer` が直近 7 日に保存した `arxiv_ids-<date>.txt` の論文は処理済みとして扱い、Papers タブと重複させない。
 - `nook/services/paper_summarizer/summary_schema.py`
   - structured output の `title_ja`(論文タイトルの日本語訳)を見出しの次の段落に「（訳）」として併記する。空か原題と同じなら出さない。
 - `nook/services/registry.py`
