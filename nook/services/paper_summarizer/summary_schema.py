@@ -22,12 +22,14 @@ def render_paper_summary_markdown(
     title: str,
     url: str,
     summary: PaperSummarySections,
+    thumbnail: str = "",
 ) -> str:
     return "\n\n".join(
         [
             f"# {title}",
             *_render_japanese_title(title=title, title_ja=summary.title_ja),
             f"[View Paper]({url})",
+            *([thumbnail] if thumbnail else []),
             "### 1. どのようなアプローチで課題を解決しようとしたか",
             _render_bullet_list(
                 summary.approach,

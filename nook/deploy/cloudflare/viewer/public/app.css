@@ -530,3 +530,19 @@ body.is-leaving::before {
   .boot-splash, body.is-leaving::before { animation: fade-in 0s linear 0.3s forwards; }
   .boot-bar, body.is-leaving::before { background: var(--accent); }
 }
+
+/* サムネイル(#42)。元サイトの画像なので、大きさを固定して後からずれないようにする */
+.article-row { flex-direction: row; gap: 12px; }
+.row-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.thumb { display: block; object-fit: cover; background: #ecece8; }
+.row-thumb { flex: 0 0 auto; width: 64px; height: 48px; border-radius: 8px; }
+.tab-card-list a, .home-list a { flex-direction: row; align-items: flex-start; gap: 12px; }
+.article-hero { margin: 0 0 20px; }
+.hero-image { width: 100%; max-height: 360px; aspect-ratio: 16 / 9; border-radius: 14px; border: 1px solid var(--line); object-fit: contain; background: var(--surface); }
+.pick-image { display: block; margin: -20px -22px 0; }
+.pick-thumb { width: 100%; height: 150px; border-radius: 16px 16px 0 0; }
+@media (max-width: 760px) {
+  .pick-image { margin: -18px -18px 0; }
+  .pick-thumb { height: 130px; }
+  .hero-image { max-height: 220px; }
+}

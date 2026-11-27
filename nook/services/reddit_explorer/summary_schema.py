@@ -15,6 +15,7 @@ def render_reddit_post_markdown(
     media_markdown: str,
     permalink: str,
     summary: RedditPostSummary,
+    thumbnail: str = "",
 ) -> str:
     parts = [
         f"# {title}",
@@ -23,6 +24,8 @@ def render_reddit_post_markdown(
     if media_markdown.strip():
         parts.append(media_markdown.strip())
     parts.append(f"[View on Reddit]({permalink})")
+    if thumbnail:
+        parts.append(thumbnail)
     parts.append("### 1. このポストの内容")
     parts.append(
         _render_bullet_list(

@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from nook.services.collector_storage import CollectorStorage
 from nook.services.llm_client import create_client
 from nook.services.storage import build_storage_backend
+from nook.services.thumbnail import image_from_soup, thumbnail_markdown
 
 _BROWSER_HEADERS = {
     "User-Agent": (
@@ -105,6 +106,8 @@ class Story:
     url: str | None = None
     text: str | None = None
     story_id: int | None = None
+    # リンク先の og:image(#42)
+    image: str | None = None
 
 
 class HackerNewsRetriever:
@@ -123,6 +126,8 @@ class HackerNewsRetriever:
             service_name="hacker_news",
             backend=build_storage_backend(os.environ),
         )
+        # 本文を取ったページの og:image。URL ごとに覚え、Story を作るときに添える(#42)
+        self._page_images: dict[str, str] = {}
 
     def __call__(self) -> None:
         """
@@ -196,6 +201,7 @@ class HackerNewsRetriever:
                     url=url,
                     text=summary,  # HNテキストがあった場合はその要約orクレンジング結果、URLの場合は記事の要約
                     story_id=story_id,
+                    image=self._page_images.get(url) if url else None,
                 )
             )
             # 処理の間に短い待機を入れる（API制限回避）
@@ -218,6 +224,12 @@ class HackerNewsRetriever:
         content_type = response.headers.get("content-type", "").lower()
         if "html" not in content_type:
             return "", f"HTML ではないページ({content_type or '種類不明'})"
+        image = image_from_soup(
+            BeautifulSoup(response.text, "html.parser"),
+            getattr(response, "url", None) or url,
+        )
+        if image:
+            self._page_images[url] = image
         text = self._cleanse_text(extract_article_text(response.text))
         if _JAVASCRIPT_WALL.search(text[:2000]) and len(text) < 2000:
             return "", "JavaScript が必要なページ"
@@ -374,13 +386,14 @@ class HackerNewsRetriever:
 
         # URLがある場合はリンクを表示、ない場合は要約テキストを直接表示
         if story.url:
-            url_or_text = f"[View Link]({story.url})\n\n{summary_text}"
+            links = f"[View Link]({story.url})"
             if story.story_id is not None:
                 discussion = _DISCUSSION_URL.format(story_id=story.story_id)
-                url_or_text = (
-                    f"[View Link]({story.url}) · [Hacker News のコメント]({discussion})"
-                    f"\n\n{summary_text}"
-                )
+                links = f"{links} · [Hacker News のコメント]({discussion})"
+            thumbnail = thumbnail_markdown(story.image)
+            url_or_text = "\n\n".join(
+                part for part in [links, thumbnail, summary_text] if part
+            )
         else:
             # URLがなく、HNのテキストを要約した場合 or そのまま表示した場合
             url_or_text = summary_text

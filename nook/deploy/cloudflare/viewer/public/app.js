@@ -75,6 +75,18 @@ function removeViewLinkParagraph(body) {
   });
 }
 
+// 元サイトの画像を直接読み込む(#42)。リファラーは送らず、読み込めなければ menu.js が隠す
+function thumbnail(url, className) {
+  const image = document.createElement("img");
+  image.className = `thumb ${className}`;
+  image.src = url;
+  image.alt = "";
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.referrerPolicy = "no-referrer";
+  return image;
+}
+
 function cloneArticle(article) {
   return {
     article_id: article.article_id,
@@ -82,6 +94,7 @@ function cloneArticle(article) {
     html: article.html || "",
     source: article.source || null,
     link: article.link || null,
+    image: article.image || null,
   };
 }
 
@@ -286,7 +299,13 @@ function startViewer() {
         const title = document.createElement("span");
         title.className = "row-title";
         title.textContent = article.title;
-        button.append(source, title);
+        const text = document.createElement("span");
+        text.className = "row-text";
+        text.append(source, title);
+        button.append(text);
+        if (article.image) {
+          button.append(thumbnail(article.image, "row-thumb"));
+        }
         button.addEventListener("click", () => selectArticle(index));
         item.append(button);
         return item;
@@ -377,7 +396,12 @@ function startViewer() {
     next.addEventListener("click", () => selectArticle(index + 1));
     pager.append(prev, next);
 
-    view.append(meta, actions, body, pager);
+    const hero = article.image ? document.createElement("figure") : null;
+    if (hero) {
+      hero.className = "article-hero";
+      hero.append(thumbnail(article.image, "hero-image"));
+    }
+    view.append(...[meta, actions, hero, body, pager].filter(Boolean));
     el.reader.replaceChildren(view);
   }
 

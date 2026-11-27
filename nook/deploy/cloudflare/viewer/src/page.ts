@@ -3,7 +3,7 @@
 import type { InitialRender, ViewerPage } from "./content";
 import { pageToState } from "./content";
 import type { RenderedArticle } from "./render";
-import { escapeHtml } from "./render";
+import { escapeHtml, thumbnailHtml } from "./render";
 import { ICON_URL, icon } from "./icons";
 import { homePath, renderMenu } from "./menu";
 
@@ -151,7 +151,7 @@ function renderArticleList(articles: RenderedArticle[]): string {
   return articles
     .map(
       (article, index) =>
-        `        <li><button type="button" class="article-row" data-index="${index}"${index === 0 ? ' aria-current="true"' : ""}><span class="row-source">${escapeHtml(article.source ?? "")}</span><span class="row-title">${escapeHtml(article.title)}</span></button></li>`,
+        `        <li><button type="button" class="article-row" data-index="${index}"${index === 0 ? ' aria-current="true"' : ""}><span class="row-text"><span class="row-source">${escapeHtml(article.source ?? "")}</span><span class="row-title">${escapeHtml(article.title)}</span></span>${thumbnailHtml(article.image, "row-thumb")}</button></li>`,
     )
     .join("\n");
 }
@@ -169,7 +169,7 @@ function renderReader(article: RenderedArticle | null, total: number): string {
           <span id="article-position">1 / ${total}</span>
         </div>
         <div class="article-actions">${link}<button id="study-open" class="accent-button" type="button">この記事で学ぶ</button></div>
-        <div id="article-body" class="article-body markdown-content">${article.html}</div>
+${article.image ? `        <figure class="article-hero">${thumbnailHtml(article.image, "hero-image")}</figure>\n` : ""}        <div id="article-body" class="article-body markdown-content">${article.html}</div>
         <div class="article-pager">
           <button id="prev-article" class="text-button" type="button" disabled>‹ 前の記事</button>
           <button id="next-article" class="primary-button" type="button"${total > 1 ? "" : " disabled"}>次の記事 ›</button>

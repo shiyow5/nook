@@ -160,3 +160,30 @@ def test_story_links_to_the_hacker_news_discussion(retriever) -> None:
     assert (
         "[Hacker News のコメント](https://news.ycombinator.com/item?id=42)" in markdown
     )
+
+
+def test_story_markdown_puts_the_og_image_after_the_links(
+    monkeypatch: pytest.MonkeyPatch, retriever
+) -> None:
+    page = ARTICLE_HTML.replace(
+        "<html>", '<html><head><meta property="og:image" content="/og.png"></head>', 1
+    )
+    monkeypatch.setattr(
+        hn.requests, "get", lambda url, **kwargs: FakeResponse(200, page)
+    )
+
+    retriever._fetch_article_text("https://example.com/post")
+    story = hn.Story(
+        title="T",
+        score=100,
+        url="https://example.com/post",
+        text="要約",
+        story_id=42,
+        image=retriever._page_images.get("https://example.com/post"),
+    )
+
+    assert story.image == "https://example.com/og.png"
+    assert (
+        "· [Hacker News のコメント](https://news.ycombinator.com/item?id=42)\n\n"
+        "![thumbnail](https://example.com/og.png)\n\n要約"
+    ) in retriever._stylize_story(story)

@@ -14,10 +14,15 @@ export type RenderedArticle = {
   source: string | null;
   /** 元記事の URL。見つからなければ null。 */
   link: string | null;
+  /** collector が選んだサムネイル画像(#42)。なければ null。 */
+  image: string | null;
 };
 
 // collector は各記事に「[View on <フィード名>](URL)」か「[View Link](URL)」などを入れている
 const VIEW_LINK_PATTERN = /\[View(?: on ([^\]]+)|[^\]]*)\]\((https?:\/\/[^)\s]+)\)/;
+
+// collector は「View」リンクの次の行に「![thumbnail](URL)」を 1 つ書く(nook/services/thumbnail.py)
+const THUMBNAIL_PATTERN = /^!\[thumbnail\]\((https?:\/\/[^)\s]+)\)[ \t]*$/m;
 
 const DANGEROUS_TAGS = new Set(["script", "style", "iframe", "object", "embed", "link", "meta"]);
 const ALLOWED_ATTRIBUTES: Record<string, ReadonlySet<string>> = {
@@ -31,12 +36,13 @@ const HEADING_SELECTOR = "h1, h2, h3";
 
 export async function renderArticle(state: ArticleState, renderIndex: number): Promise<RenderedArticle> {
   try {
-    const rawHtml = marked.parse(state.markdown, { async: false, gfm: true });
+    const { image, markdown } = extractThumbnail(state.markdown);
+    const rawHtml = marked.parse(markdown, { async: false, gfm: true });
     const sanitizedHtml = await transform(rawHtml, sanitizeRewriter());
     const headingTexts = await collectHeadingTexts(sanitizedHtml);
     const headings = buildHeadings(headingTexts, `${state.articleId}-${renderIndex}`);
     const html = await transform(sanitizedHtml, headingIdRewriter(headings));
-    return { articleId: state.articleId, title: state.title, html, headings, ...extractSourceLink(state.markdown) };
+    return { articleId: state.articleId, title: state.title, html, headings, image, ...extractSourceLink(state.markdown) };
   } catch (error) {
     logEvent("error", {
       event: "article_render_failed",
@@ -48,6 +54,7 @@ export async function renderArticle(state: ArticleState, renderIndex: number): P
       title: state.title,
       html: `<pre>${escapeHtml(state.markdown)}</pre>`,
       headings: [],
+      image: extractThumbnail(state.markdown).image,
       ...extractSourceLink(state.markdown),
     };
   }
@@ -57,6 +64,23 @@ export async function renderArticle(state: ArticleState, renderIndex: number): P
 export async function renderMarkdownHtml(markdown: string): Promise<string> {
   const rawHtml = marked.parse(markdown, { async: false, gfm: true, breaks: true });
   return transform(rawHtml, sanitizeRewriter());
+}
+
+/** サムネイルの行を取り出し、本文からは外す(画面では本文の上と一覧に出すため)。 */
+export function extractThumbnail(markdown: string): { image: string | null; markdown: string } {
+  const match = THUMBNAIL_PATTERN.exec(markdown);
+  if (!match) {
+    return { image: null, markdown };
+  }
+  return { image: match[1], markdown: markdown.replace(match[0], "") };
+}
+
+/** 元サイトの画像を直接読み込む <img>。リファラーは送らず、遅延読み込みにする。 */
+export function thumbnailHtml(url: string | null, className: string): string {
+  if (!url || !/^https?:\/\//.test(url)) {
+    return "";
+  }
+  return `<img class="thumb ${className}" src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
 }
 
 export function extractSourceLink(markdown: string): { source: string | null; link: string | null } {
