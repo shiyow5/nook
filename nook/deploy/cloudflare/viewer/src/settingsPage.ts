@@ -2,8 +2,8 @@
 import { COLLECTOR_NAMES, displayLabel, tabMeta } from "./content";
 import { serializeStateForScript } from "./page";
 import { RSS_SERVICES } from "./settings";
+import { ICON_URL, icon, iconButtonAttributes, iconSprite } from "./icons";
 
-const ICON_URL = "https://api.dicebear.com/7.x/shapes";
 
 export function renderSettingsHtml(
   state: { defaults: unknown; settings: unknown },
@@ -29,8 +29,9 @@ export function renderSettingsHtml(
   <script defer src="/static/settings.js?v=${version}"></script>
 </head>
 <body class="settings-page">
+  ${iconSprite()}
   <header class="topbar">
-    <a class="text-button" href="/">‹ ホームへ戻る</a>
+    <a class="icon-button" href="/" ${iconButtonAttributes("ホームへ戻る")}>${icon("chevronLeft")}</a>
     <a class="brand" href="/">
       <img src="${ICON_URL}/svg?seed=nook" alt="" width="26" height="26">
       <span class="brand-name">nook</span>

@@ -2,7 +2,7 @@
 // <head> と「記事を集めています」の表示を先に送り、R2 の読み込みと記事の変換が済んだら本体を続けて送る。
 // 本体の先頭で読み込み中の表示を消すので、JavaScript がなくても切り替わる。
 import { logEvent } from "./env";
-import { ICON_URL } from "./icons";
+import { ICON_URL, iconSprite } from "./icons";
 import { escapeHtml } from "./render";
 
 export type ShellOptions = {
@@ -30,6 +30,7 @@ export function renderShellHead(options: ShellOptions): string {
 ${styles}  <link rel="stylesheet" href="/static/app.css?v=${version}">
 ${scripts}</head>
 <body ${options.bodyAttributes}>
+  ${iconSprite()}
   <div id="boot-splash" class="boot-splash" role="status" aria-live="polite" aria-busy="true">
     <img src="${ICON_URL}/svg?seed=nook" alt="" width="56" height="56">
     <p>${escapeHtml(options.loadingMessage)}</p>

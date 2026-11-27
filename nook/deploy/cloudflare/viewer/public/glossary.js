@@ -1,6 +1,22 @@
 // 用語辞書(src/glossaryPage.ts が描画、#17)。一覧の並べ替え・頭文字の索引・表示の切り替え・編集を受け持つ。
 "use strict";
 
+// アイコンだけのボタンにする。図柄はシェルに埋め込んだ <symbol id="icon-…">(src/icons.ts)を使う
+function makeIconButton(element, name, label) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#icon-${name}`);
+  svg.append(use);
+  element.classList.add("icon-button");
+  element.setAttribute("aria-label", label);
+  element.title = label;
+  element.replaceChildren(svg);
+  return element;
+}
+
 const VIEW_KEY = "nook.glossaryView";
 const INDEX_GROUPS = ["英数", "あ", "か", "さ", "た", "な", "は", "ま", "や", "ら", "わ", "他"];
 // ひらがなの行の先頭(この文字以上、次の行の先頭未満がその行)
@@ -103,6 +119,10 @@ function startGlossary() {
     link.className = "term-source";
     link.textContent = `出典: ${state.tab_labels[term.app] || term.app} · ${term.date}`;
     return link;
+  }
+
+  function iconAction(name, label, onClick, pressed) {
+    return makeIconButton(actionButton(label, onClick, pressed), name, label);
   }
 
   function actionButton(label, onClick, pressed) {
@@ -217,16 +237,16 @@ function startGlossary() {
     const actions = document.createElement("div");
     actions.className = "term-actions";
     actions.append(
-      actionButton(term.important ? "★ 重要" : "☆ 重要", () => patch(term, { important: !term.important }), term.important),
+      iconAction("star", term.important ? "重要の印を外す" : "重要の印を付ける", () => patch(term, { important: !term.important }), term.important),
       actionButton(
         term.status === "understood" ? "これから覚えるに戻す" : "理解できた",
         () => patch(term, { status: term.status === "understood" ? "learning" : "understood" }),
       ),
-      actionButton("編集", () => {
+      iconAction("pencil", "編集", () => {
         ui.editing = term.id;
         render();
       }),
-      actionButton("削除", async () => {
+      iconAction("trash", "削除", async () => {
         if (!window.confirm(`「${term.word}」を辞書から削除しますか?`)) {
           return;
         }

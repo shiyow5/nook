@@ -38,6 +38,14 @@ button { font: inherit; color: inherit; }
   font-size: 18px; cursor: pointer;
 }
 .icon-button:disabled { color: #a1a1aa; cursor: default; }
+/* アイコンだけのボタン(#75)。a 要素でも同じ見た目にし、押した状態の星は塗りつぶす */
+a.icon-button { color: var(--text); text-decoration: none; }
+.icon-button.is-primary { border-color: var(--ink); background: var(--ink); color: #fff; }
+.icon-button.is-primary:disabled { border-color: var(--line); background: var(--surface); color: #a1a1aa; }
+.icon-button.is-small { width: 32px; height: 32px; }
+.icon-button.is-error { color: #b42318; border-color: #b42318; }
+.icon-button[aria-pressed="true"] svg { fill: currentColor; }
+.term-actions .icon-button[aria-pressed="true"] { color: #b45309; border-color: #f5d0a0; background: #fff7ed; }
 .text-button {
   display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
@@ -301,7 +309,7 @@ a.menu-item:hover, button.menu-item:hover { background: var(--bg); color: var(--
   .article-meta { gap: 8px; }
   .markdown-content { font-size: 16px; }
   .markdown-content .md-h1 { font-size: 22px; }
-  .article-pager .text-button, .article-pager .primary-button { min-height: 48px; flex: 1; justify-content: center; }
+  .article-pager .icon-button { height: 48px; flex: 1; }
 
   .study-fab { right: 16px; bottom: 20px; }
   .chat-fab { right: 20px; bottom: 88px; }
@@ -563,7 +571,6 @@ body.is-leaving::before {
 .history-card { flex-direction: row; align-items: flex-start; }
 .history-card .bookmark-main { flex: 1; min-width: 0; }
 .history-remove { flex: none; color: var(--text-muted); }
-.history-remove.is-error { color: #b42318; border-color: #b42318; }
 .history-day { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-muted); }
 .bookmark-actions .text-button { text-decoration: none; display: inline-flex; align-items: center; }
 .back-link { align-self: flex-start; text-decoration: none; display: inline-flex; align-items: center; }
@@ -597,7 +604,7 @@ body.is-leaving::before {
 .glossary-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
 .glossary-select select { font: inherit; font-size: 14px; height: 40px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.segmented button { min-height: 40px; padding: 0 14px; border: 0; background: var(--surface); cursor: pointer; font-size: 14px; }
+.segmented button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; border: 0; background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; }
 .segmented button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .glossary-index { display: flex; flex-wrap: wrap; gap: 6px; }
 .glossary-index .chip[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
