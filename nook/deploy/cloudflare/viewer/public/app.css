@@ -672,3 +672,42 @@ body.is-leaving::before {
 .case-ask { font-weight: 700; }
 .case-hints { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.75; color: var(--text-muted); }
 .model-answer { margin: 0; font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: var(--text-body); }
+
+/* 学習カレンダー(#21) */
+.calendar-main { width: 100%; max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 16px; }
+.calendar-page #settings-link { margin-left: auto; }
+.cal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; }
+.cal-stats div { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.cal-stats dt { font-size: 13px; color: var(--text-muted); }
+.cal-stats dd { margin: 4px 0 0; font-size: 24px; font-weight: 700; }
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-nav .icon-button, .cal-nav .text-button { text-decoration: none; color: var(--text); }
+.cal-month { margin: 0 8px; font-size: 18px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-weekday { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.cal-cell {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  height: 64px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); text-decoration: none;
+}
+.cal-cell.is-blank { background: transparent; border-color: transparent; }
+.cal-cell.is-active { background: var(--accent-soft); border-color: #b9dbe8; }
+.cal-cell.is-today { box-shadow: inset 0 0 0 2px var(--ink); }
+.cal-cell.is-selected { background: var(--ink); color: #fff; border-color: var(--ink); }
+.cal-date { font-size: 14px; font-weight: 600; }
+.cal-count { font-size: 11px; font-weight: 700; color: var(--accent-strong); }
+.cal-cell.is-selected .cal-count { color: #cfe7f1; }
+.day-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.day-detail h2 { margin: 0; font-size: 18px; }
+.day-session { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.day-session-head { display: flex; align-items: center; gap: 8px; }
+.day-session-time { font-size: 13px; color: var(--text-muted); }
+.day-session-title { margin: 0; font-size: 16px; }
+.day-session .text-button { align-self: flex-start; text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 760px) {
+  .calendar-main { padding: 20px 16px 48px; }
+  .cal-stats dd { font-size: 20px; }
+  .cal-grid { gap: 4px; }
+  .cal-cell { height: auto; aspect-ratio: 1 / 1; min-height: 44px; border-radius: 10px; }
+}
+.day-session .source-chip { font-size: 12px; }

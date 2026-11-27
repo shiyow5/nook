@@ -3,7 +3,7 @@ import { type TabInfo, TAB_GROUP_ORDER } from "./content";
 import { icon } from "./icons";
 import { escapeHtml } from "./render";
 
-export type MenuPage = "home" | "read" | "bookmarks" | "glossary";
+export type MenuPage = "home" | "read" | "bookmarks" | "glossary" | "calendar";
 
 /** 詳細画面の URL。今日の日付は省き、ブックマークしやすい短い形にする。 */
 export function readPath(appName: string, day: string, today: string, articleId?: string): string {
@@ -37,6 +37,7 @@ ${pendingItem("history", "履歴")}
 ${renderTabGroups(args)}
     </div>
     <div class="menu-footer">
+      <a class="menu-item" href="/calendar"${current("calendar")}>${icon("calendar")}<span>学習カレンダー</span></a>
       <a class="menu-item" href="/glossary"${current("glossary")}>${icon("glossary")}<span>用語辞書</span></a>
       <a class="menu-item" href="/settings">${icon("settings")}<span>設定</span></a>
     </div>
