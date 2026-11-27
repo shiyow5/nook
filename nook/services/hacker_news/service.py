@@ -231,6 +231,7 @@ class HackerNewsRetriever:
         if image:
             self._page_images[url] = image
         text = self._cleanse_text(extract_article_text(response.text))
+        self._storage.write_source_text(url, text)
         if _JAVASCRIPT_WALL.search(text[:2000]) and len(text) < 2000:
             return "", "JavaScript が必要なページ"
         if len(text) < _MIN_ARTICLE_CHARS:

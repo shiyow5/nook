@@ -140,6 +140,7 @@ class TechNews:
                         continue
 
                     processed_urls.add(article.url)
+                    self._storage.write_source_text(article.url, article.text)
 
                     article.summary = self._summarize_article(article)
                     markdowns.append(self._stylize_article(article))

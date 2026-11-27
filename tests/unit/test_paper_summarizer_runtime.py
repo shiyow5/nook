@@ -9,6 +9,12 @@ def test_paper_summarizer_uses_extended_llm_timeout(
     captured_kwargs: dict[str, object] = {}
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             self.service_name = service_name
             self.backend = backend
@@ -134,6 +140,12 @@ def test_paper_summarizer_uses_structured_summary_schema(monkeypatch) -> None:
             )
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             self.service_name = service_name
             self.backend = backend
@@ -195,6 +207,12 @@ def test_paper_summarizer_stores_rendered_markdown(monkeypatch) -> None:
             )
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             _ = backend
             self.service_name = service_name
@@ -285,6 +303,12 @@ def test_paper_summarizer_removes_seen_and_duplicate_papers_without_losing_order
     import nook.services.paper_summarizer.service as paper_service
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             _ = backend
             self.service_name = service_name

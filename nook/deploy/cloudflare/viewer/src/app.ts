@@ -246,10 +246,11 @@ async function chat(env: NookEnv, appName: string, request: Request, deps: AppDe
     throw new HttpError(404, "Article not found");
   }
 
-  const additionalContext = await collectAdditionalContext({
+  const { context: additionalContext, failedLinks } = await collectAdditionalContext({
     markdown: article.markdown,
     message: body.message,
     fetchFn: deps.fetch,
+    bucket: env.NOOK_BUCKET,
   });
   const response = await chatWithSearch({
     apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
@@ -259,6 +260,7 @@ async function chat(env: NookEnv, appName: string, request: Request, deps: AppDe
       additionalContext,
       chatHistory: body.chatHistory,
       message: body.message,
+      failedLinks,
     }),
     fetchFn: deps.fetch,
   });

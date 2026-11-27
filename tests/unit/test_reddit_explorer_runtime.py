@@ -21,6 +21,12 @@ def test_reddit_explorer_uses_structured_summary_schema(monkeypatch) -> None:
             )
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             self.service_name = service_name
             self.backend = backend
@@ -94,6 +100,12 @@ def test_reddit_explorer_stores_rendered_markdown(monkeypatch) -> None:
             )
 
     class DummyCollectorStorage:
+        sources: dict[str, str] = {}
+
+        def write_source_text(self, url: str | None, text: str | None) -> None:
+            if url and text:
+                DummyCollectorStorage.sources[url] = text
+
         def __init__(self, *, service_name: str, backend: object) -> None:
             _ = backend
             self.service_name = service_name

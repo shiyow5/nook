@@ -131,6 +131,10 @@ class PaperSummarizer:
 
     def _process_paper(self, arxiv_id: str) -> str:
         paper_info = self._retrieve_paper_info(arxiv_id)
+        self._storage.write_source_text(
+            paper_info.url,
+            f"Abstract: {paper_info.abstract}\n\n本文:\n{paper_info.contents}",
+        )
         paper_info.summary = self._summarize_paper_info(paper_info)
         return self._stylize_paper_info(paper_info)
 

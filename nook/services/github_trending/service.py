@@ -140,6 +140,7 @@ class GithubTrending:
             # Fetch README
             print(f"  Fetching README for {repo.name}...")
             repo.readme_content = self._fetch_readme(repo.link)
+            self._storage.write_source_text(repo.link, repo.readme_content)
             time.sleep(1)  # Sleep after fetching README
 
             # Summarize
