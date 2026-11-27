@@ -1,7 +1,7 @@
 // 読む画面(Design キャンバスの A+B 案)の動き。サーバーが埋め込んだ #viewer-state を起点に描画する。
 "use strict";
 
-const STORAGE_KEYS = { listOpen: "nook.listOpen", studyOpen: "nook.studyOpen" };
+const STORAGE_KEYS = { listOpen: "nook.listOpen", studyOpen: "nook.studyOpen", chatOpen: "nook.chatOpen" };
 const POLL_INTERVAL_MS = 5000;
 const POLL_ATTEMPTS = 24;
 // これより狭い画面では、一覧と本文を切り替えて 1 つずつ見せる(app.css の @media と同じ値)
@@ -98,6 +98,7 @@ function startViewer() {
     filter: "",
     listOpen: readStoredFlag(STORAGE_KEYS.listOpen, true),
     studyOpen: readStoredFlag(STORAGE_KEYS.studyOpen, false),
+    chatOpen: readStoredFlag(STORAGE_KEYS.chatOpen, false) && !readStoredFlag(STORAGE_KEYS.studyOpen, false),
     chats: {},
     pendingChats: new Set(),
     pollTimerId: null,
@@ -139,6 +140,10 @@ function startViewer() {
     studyArticle: $("study-article"),
     studyFab: $("study-fab"),
     studyBackdrop: $("study-backdrop"),
+    chatPanel: $("chat-panel"),
+    chatFab: $("chat-fab"),
+    chatClose: $("chat-close"),
+    chatArticle: $("chat-article"),
     chatLog: $("chat-log"),
     chatForm: $("chat-form"),
     chatInput: $("chat-input"),
@@ -175,13 +180,15 @@ function startViewer() {
     el.status.textContent = message;
   }
 
-  function renderMarkdown(markdown) {
+  function renderAnswer(message) {
     const container = document.createElement("div");
     container.className = "markdown-content";
-    if (window.marked && window.DOMPurify) {
-      container.innerHTML = window.DOMPurify.sanitize(window.marked.parse(markdown || "", { breaks: true, gfm: true }));
+    if (message.html) {
+      // html はサーバー側(render.ts)で記事本文と同じ許可リストに絞ったもの
+      container.innerHTML = message.html;
     } else {
-      container.textContent = markdown;
+      container.style.whiteSpace = "pre-wrap";
+      container.textContent = message.content;
     }
     return container;
   }
@@ -511,12 +518,18 @@ function startViewer() {
   }
 
   function renderStudy() {
+    const anyOpen = runtime.studyOpen || runtime.chatOpen;
     el.studyPanel.hidden = !runtime.studyOpen;
-    el.studyBackdrop.hidden = !runtime.studyOpen;
-    el.studyFab.hidden = runtime.studyOpen;
+    el.chatPanel.hidden = !runtime.chatOpen;
+    el.studyBackdrop.hidden = !anyOpen;
+    el.studyFab.hidden = anyOpen;
+    el.chatFab.hidden = anyOpen;
     el.studyFab.setAttribute("aria-expanded", String(runtime.studyOpen));
+    el.chatFab.setAttribute("aria-expanded", String(runtime.chatOpen));
     const article = currentArticle();
-    el.studyArticle.textContent = article ? `対象: ${article.title}` : "記事を選ぶと、その記事について質問できます。";
+    const target = article ? `対象: ${article.title}` : "記事を選ぶと、その記事について学べます。";
+    el.studyArticle.textContent = target;
+    el.chatArticle.textContent = target;
     renderTerms(article);
     renderQuiz(article);
     if (runtime.studyOpen && article && studyEntry(article).terms.status === "idle") {
@@ -527,14 +540,14 @@ function startViewer() {
     el.chatInput.disabled = !article || pending;
     el.chatSubmit.disabled = !article || pending;
     el.chatSubmit.textContent = pending ? "回答を待っています…" : "送信";
-    el.studyPanel.querySelectorAll(".chip").forEach((chip) => {
+    el.chatPanel.querySelectorAll(".chip").forEach((chip) => {
       chip.disabled = !article || pending;
     });
     const messages = article ? runtime.chats[chatKey(article)] || [] : [];
     el.chatLog.replaceChildren(
       ...messages.map((message) => {
         if (message.role === "assistant") {
-          const node = renderMarkdown(message.content);
+          const node = renderAnswer(message);
           node.classList.add("chat-message", "assistant");
           return node;
         }
@@ -610,14 +623,26 @@ function startViewer() {
     (open ? el.listClose : el.listOpen).focus();
   }
 
-  function setStudyOpen(open) {
-    runtime.studyOpen = open;
+  // 学びパネルとチャットのパネルは同じ場所に出すので、片方を開くともう片方は閉じる
+  function setPanels(studyOpen, chatOpen) {
+    runtime.studyOpen = studyOpen;
+    runtime.chatOpen = chatOpen;
     // スマホでは画面を覆うシートなので、次に開いたときに勝手に出ないよう覚えない
     if (!narrow.matches) {
-      storeFlag(STORAGE_KEYS.studyOpen, open);
+      storeFlag(STORAGE_KEYS.studyOpen, studyOpen);
+      storeFlag(STORAGE_KEYS.chatOpen, chatOpen);
     }
     renderStudy();
-    (open ? el.chatInput : el.studyFab).focus();
+  }
+
+  function setStudyOpen(open) {
+    setPanels(open, false);
+    (open ? el.studyClose : el.studyFab).focus();
+  }
+
+  function setChatOpen(open) {
+    setPanels(false, open);
+    (open ? el.chatInput : el.chatFab).focus();
   }
 
   function openDrawer() {
@@ -747,7 +772,10 @@ function startViewer() {
       if (!response.ok) {
         throw new Error(payload.detail || "回答を取得できませんでした。");
       }
-      runtime.chats[key] = [...runtime.chats[key], { role: "assistant", content: payload.response || "回答が空でした。" }];
+      runtime.chats[key] = [
+        ...runtime.chats[key],
+        { role: "assistant", content: payload.response || "回答が空でした。", html: payload.html || null },
+      ];
     } catch (error) {
       const reason = error instanceof Error ? error.message : "回答を取得できませんでした。";
       runtime.chats[key] = [...runtime.chats[key], { role: "assistant", content: `エラー: ${reason}` }];
@@ -768,7 +796,9 @@ function startViewer() {
   el.listOpen.addEventListener("click", () => setListOpen(true));
   el.studyFab.addEventListener("click", () => setStudyOpen(true));
   el.studyClose.addEventListener("click", () => setStudyOpen(false));
-  el.studyBackdrop.addEventListener("click", () => setStudyOpen(false));
+  el.studyBackdrop.addEventListener("click", () => setPanels(false, false));
+  el.chatFab.addEventListener("click", () => setChatOpen(true));
+  el.chatClose.addEventListener("click", () => setChatOpen(false));
   el.retryButton.addEventListener("click", retryCurrentApp);
   el.filterInput.addEventListener("input", () => {
     runtime.filter = el.filterInput.value;
@@ -804,16 +834,19 @@ function startViewer() {
     }
   });
   el.quizButton.addEventListener("click", () => loadStudy("quiz"));
-  el.introButton.addEventListener("click", () => ask(INTRO_PROMPT, "入門の解説を読む"));
-  el.studyPanel.querySelectorAll(".chip").forEach((chip) => {
+  el.introButton.addEventListener("click", () => {
+    setChatOpen(true);
+    ask(INTRO_PROMPT, "入門の解説を読む");
+  });
+  el.chatPanel.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => ask(chip.dataset.prompt || chip.textContent || "", chip.textContent));
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       if (!el.drawer.hidden) {
         closeDrawer();
-      } else if (runtime.studyOpen && narrow.matches) {
-        setStudyOpen(false);
+      } else if ((runtime.studyOpen || runtime.chatOpen) && narrow.matches) {
+        setPanels(false, false);
       }
       return;
     }
@@ -829,6 +862,7 @@ function startViewer() {
 
   if (narrow.matches) {
     runtime.studyOpen = false;
+    runtime.chatOpen = false;
   }
   render();
 }

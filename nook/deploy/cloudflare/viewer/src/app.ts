@@ -12,6 +12,7 @@ import {
 import { type FetchFn, HttpError, logEvent, type NookEnv, requireSecret } from "./env";
 import { dispatchCollectorWorkflow } from "./github";
 import { renderIndexHtml } from "./page";
+import { renderMarkdownHtml } from "./render";
 import { loadSettingsState, saveSettings } from "./settings";
 import { generateStudy, STUDY_KINDS, type StudyKind, studyCacheKey } from "./study";
 import { renderSettingsHtml } from "./settingsPage";
@@ -238,7 +239,7 @@ async function chat(env: NookEnv, appName: string, request: Request, deps: AppDe
     }),
     fetchFn: deps.fetch,
   });
-  return Response.json({ response });
+  return Response.json({ response, html: await renderMarkdownHtml(response) });
 }
 
 async function retry(env: NookEnv, appName: string, deps: AppDeps): Promise<Response> {

@@ -53,6 +53,12 @@ export async function renderArticle(state: ArticleState, renderIndex: number): P
   }
 }
 
+/** チャットの回答などの Markdown を、記事本文と同じ許可リストで HTML にする。 */
+export async function renderMarkdownHtml(markdown: string): Promise<string> {
+  const rawHtml = marked.parse(markdown, { async: false, gfm: true, breaks: true });
+  return transform(rawHtml, sanitizeRewriter());
+}
+
 export function extractSourceLink(markdown: string): { source: string | null; link: string | null } {
   const match = VIEW_LINK_PATTERN.exec(markdown);
   if (!match) {
