@@ -73,6 +73,8 @@ npm run deploy          # viewer を手元から Cloudflare にデプロイ(普�
 
 viewer は main にマージされると、GitHub Actions の `deploy-viewer` が検査を通してから自動でデプロイします。
 
+Discord の Webhook を GitHub Secrets(`DISCORD_WEBHOOK_URL`)に登録すると、毎朝の収集の件数・注目の記事・失敗を通知します(手順は docs/CLOUDFLARE.md)。
+
 収集を手動で動かすときは `gh workflow run collect.yml -f collectors=jp_tech_news` のように collector 名を指定します。
 
 設計の詳細は [docs/DESIGN.md](docs/DESIGN.md) にあります。リポジトリ内で AI エージェントに作業させるときの決まりは [AGENTS.md](AGENTS.md) です。

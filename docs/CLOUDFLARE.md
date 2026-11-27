@@ -123,6 +123,20 @@ gh run watch
 
 `GOOGLE_API_KEY` と `GITHUB_TOKEN` は Cloudflare 側の secret なので、自動デプロイでは上書きしません。D1 のテーブルを変える(`migrations/` に SQL を足す)ときは、デプロイの前に手元で `npx wrangler d1 migrations apply nook-study --remote` を実行します。自動デプロイのトークンには D1 の権限を付けていません。トークンが未登録のままだと、デプロイのジョブは「CLOUDFLARE_API_TOKEN が必要」というエラーで止まります。
 
+## 7. 収集の結果を Discord に通知する(任意)
+
+毎朝の収集が終わると、タブごとの件数、注目の記事(各タブの先頭)、失敗した collector を Discord に送れます(#22)。画面の「再取得」などの手動実行は、失敗したときだけ送ります。依存のインストールなど collector より前で落ちたときも、失敗したことだけを送ります。
+
+1. Discord で通知を受けるチャンネルの「チャンネルの編集 > 連携サービス > ウェブフック」から新しいウェブフックを作り、URL をコピーします。
+2. GitHub に登録します。URL はチャンネルに書き込める鍵なので、Secrets に入れます。
+
+   ```bash
+   gh secret set DISCORD_WEBHOOK_URL             # 1 の URL を貼り付ける
+   gh variable set NOOK_VIEWER_URL --body "https://<viewer の URL>"   # 通知に載せる画面のリンク(任意)
+   ```
+
+登録しなければ通知は送りません。通知に失敗しても収集の結果は変わりません。GitHub は公開リポジトリに 60 日間コミットが無いと cron を止めるので、通知が来なくなったら Actions 画面で再び有効にしてください。
+
 ## ローカルでの確認
 
 ```bash

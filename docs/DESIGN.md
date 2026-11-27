@@ -7,6 +7,7 @@ Nook は collector 群と viewer を `nook/services/` 配下のマイクロサ�
 ## 実行モード
 
 - Cloudflare(詳細は `docs/CLOUDFLARE.md`):
+  - 通知(#22): `nook/deploy/github/notify.py` が、収集の最後に R2 のその日の Markdown から記事数と先頭の記事を数え、Discord の Webhook(Secrets の `DISCORD_WEBHOOK_URL`)に送る。予定実行(`NOOK_COLLECTOR_SETTINGS=apply`)では毎回、手動実行では失敗したときだけ。Webhook が未登録なら何もせず、通知の失敗は収集の終了コードに影響させない(ログに URL を出さない)。collector より前で落ちたときは `collect.yml` の `Notify failure` が curl で知らせ、Python が通知済みのとき(`$RUNNER_TEMP/nook-notified`)は重ねて送らない。
   - collector は `.github/workflows/collect.yml` が毎日 06:17 JST と workflow_dispatch で実行する。`nook/deploy/github/run_collectors.py` がカンマ区切りの collector を順に実行し、失敗があっても残りを実行してから非 0 で終了する。
   - 保存先は `S3StorageBackend` を `NOOK_S3_ENDPOINT_URL` / `NOOK_S3_REGION` で R2 に向けたもの。runner は `TZ=Asia/Tokyo` で動かし、日付を JST に揃える。
   - viewer は `nook/deploy/cloudflare/viewer/` の TypeScript Worker。R2 binding から Markdown と state を読み書きし、画面の `public/app.js` / `public/app.css` は Workers static assets として `/static/*` で配信する(Python 版の `viewer.js` / `viewer.css` とは別のファイル)。API の形は Python 版と同じで、天気 API は持たない。
