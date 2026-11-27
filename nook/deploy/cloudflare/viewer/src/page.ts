@@ -8,7 +8,7 @@ import { ICON_URL, icon } from "./icons";
 import { homePath, renderMenu } from "./menu";
 
 export const INDEX_SHELL = {
-  scripts: ["menu.js", "app.js", "selection.js"],
+  scripts: ["menu.js", "app.js", "selection.js", "practice.js"],
   extraStyles: ["https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"],
   bodyAttributes: 'data-view="list"',
 };
@@ -122,6 +122,32 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)
         <button id="chat-submit" class="primary-button" type="submit">送信</button>
       </form>
     </aside>
+
+    <aside id="practice-panel" class="study-panel practice-panel" aria-labelledby="practice-title" hidden>
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="study-head">
+        <h2 id="practice-title">演習</h2>
+        <button id="practice-close" class="icon-button" type="button" aria-label="演習のパネルを閉じる">×</button>
+      </div>
+      <p id="practice-article" class="study-article"></p>
+      <section class="study-section" aria-labelledby="review-title">
+        <h3 id="review-title" class="study-heading">自分の言葉でまとめる</h3>
+        <p class="practice-note">記事を読んで、要点を自分の言葉で書いてください。AI が、理解できている点・ずれている点・補足を返します。</p>
+        <form id="review-form" class="practice-form">
+          <label for="review-input" class="visually-hidden">自分の要約</label>
+          <textarea id="review-input" rows="5" maxlength="3000" placeholder="この記事は…"></textarea>
+          <div class="practice-form-foot">
+            <span id="review-count" class="practice-count">0 字</span>
+            <button id="review-submit" class="accent-solid-button" type="submit">AI に添削してもらう</button>
+          </div>
+        </form>
+        <div id="review-result" class="practice-result" aria-live="polite"></div>
+      </section>
+      <section class="study-section" aria-labelledby="practice-history-title">
+        <h3 id="practice-history-title" class="study-heading">この記事のこれまでのやり取り</h3>
+        <div id="practice-history" class="practice-history"></div>
+      </section>
+    </aside>
   </div>
 
   <div id="selection-popup" class="selection-popup" role="toolbar" aria-label="選んだ語を辞書に登録" hidden>
@@ -146,6 +172,7 @@ ${renderReader(initial.articles[0] ?? null, initial.articles.length, firstSaved)
 
   <div id="study-backdrop" class="study-backdrop" hidden></div>
   <button id="chat-fab" class="study-fab chat-fab" type="button" aria-label="AI チャットを開く" aria-controls="chat-panel" aria-expanded="false" title="AI に聞く">${icon("chat", 24)}</button>
+  <button id="practice-fab" class="study-fab practice-fab" type="button" aria-label="演習を開く" aria-controls="practice-panel" aria-expanded="false" title="演習">${icon("pencil", 22)}</button>
   <button id="study-fab" class="study-fab" type="button" aria-label="今日の学びを開く" aria-controls="study-panel" aria-expanded="false" title="今日の学び">${icon("book", 26)}</button>
 
 ${renderMenu({ tabs: initial.tabs, page: "read", day: page.date, today })}

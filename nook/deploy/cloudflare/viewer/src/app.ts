@@ -24,6 +24,14 @@ import {
   updateTerm,
 } from "./glossary";
 import { GLOSSARY_SHELL, renderGlossaryBody } from "./glossaryPage";
+import {
+  listSessionsForArticle,
+  loadArticleMarkdown,
+  parseSummary,
+  reviewSummary,
+  saveSession,
+  sessionToState,
+} from "./practice";
 import { buildHomeData, HOME_SHELL, renderHomeBody } from "./home";
 import { INDEX_SHELL, renderIndexBody } from "./page";
 import { loadingMessage, renderShellHead, streamPage } from "./shell";
@@ -126,6 +134,10 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
     await deleteTerm(env.DB, Number(termMatch[1]));
     return Response.json({ deleted: true });
   }
+  const practiceMatch = /^\/api\/practice\/([^/]+)$/.exec(path);
+  if (practiceMatch && (method === "GET" || method === "POST")) {
+    return practice(env, method, decodePathParam(practiceMatch[1]), request, url, deps);
+  }
   const favoriteMatch = /^\/api\/favorites\/([^/]+)$/.exec(path);
   if ((method === "PUT" || method === "DELETE") && favoriteMatch) {
     return updateFavorite(env, method, decodePathParam(favoriteMatch[1]), request, deps);
@@ -222,6 +234,56 @@ async function draftGlossaryTerm(env: NookEnv, request: Request, deps: AppDeps):
     fetchFn: deps.fetch,
   });
   return Response.json(draft);
+}
+
+function articleRef(value: unknown): string {
+  if (typeof value !== "string" || !/^[\w-]{1,120}$/.test(value)) {
+    throw new HttpError(400, "article_id を指定してください");
+  }
+  return value;
+}
+
+/** 演習(#19 添削)。GET はその記事のこれまでのやり取り、POST は新しい添削。 */
+async function practice(
+  env: NookEnv,
+  method: string,
+  appName: string,
+  request: Request,
+  url: URL,
+  deps: AppDeps,
+): Promise<Response> {
+  ensureViewerService(viewerServiceNames(env), appName);
+  if (method === "GET") {
+    const day = resolveDay(url.searchParams.get("date"), deps.now());
+    const articleId = articleRef(url.searchParams.get("article_id"));
+    const sessions = await listSessionsForArticle(env.DB, appName, day, articleId);
+    return Response.json({ sessions: sessions.map(sessionToState) }, { headers: { "cache-control": "no-store" } });
+  }
+  const payload = ((await readJson(request)) ?? {}) as Record<string, unknown>;
+  const articleId = articleRef(payload.article_id);
+  const day = resolveDay(typeof payload.date === "string" ? payload.date : null, deps.now());
+  if (payload.kind !== "review") {
+    throw new HttpError(400, "kind は review にしてください");
+  }
+  const summary = parseSummary(payload.summary);
+  const markdown = await loadArticleMarkdown(env.NOOK_BUCKET, appName, day, articleId);
+  const output = await reviewSummary({
+    markdown,
+    summary,
+    apiKey: requireSecret(env.GOOGLE_API_KEY, "GOOGLE_API_KEY"),
+    llmModel: env.LLM_MODEL,
+    fetchFn: deps.fetch,
+  });
+  const session = await saveSession(env.DB, {
+    kind: "review",
+    app: appName,
+    day,
+    articleId,
+    input: { summary },
+    output,
+    createdAt: deps.now().toISOString(),
+  });
+  return Response.json({ session: sessionToState(session) });
 }
 
 function renderBookmarks(env: NookEnv, today: string, url: URL): Response {

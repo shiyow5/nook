@@ -121,7 +121,8 @@ function startSelection() {
   $("dialog-cancel").addEventListener("click", () => dialog.close());
   $("term-dialog-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const source = window.nookReader?.currentArticle() || {};
+    const { app, date, article_id: articleId } = window.nookReader?.currentArticle() || {};
+    const source = { app, date, article_id: articleId };
     const save = $("dialog-save");
     save.disabled = true;
     try {
