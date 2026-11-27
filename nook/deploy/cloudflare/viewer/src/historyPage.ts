@@ -2,6 +2,7 @@
 import { header, menuTabs } from "./bookmarksPage";
 import { displayLabel } from "./content";
 import type { HistoryEntry } from "./history";
+import { icon } from "./icons";
 import { readPath, renderMenu } from "./menu";
 import { formatDayLabel, formatShortDayLabel } from "./page";
 import { escapeHtml, thumbnailHtml } from "./render";
@@ -87,8 +88,6 @@ function renderHistoryCard(entry: HistoryEntry, today: string): string {
               </span>
               ${thumbnailHtml(entry.image, "row-thumb")}
             </a>
-            <div class="bookmark-actions">
-              <button class="text-button history-remove" type="button">履歴から消す</button>
-            </div>
+            <button class="icon-button history-remove" type="button" aria-label="履歴から消す" title="履歴から消す">${icon("trash", 18)}</button>
           </li>`;
 }

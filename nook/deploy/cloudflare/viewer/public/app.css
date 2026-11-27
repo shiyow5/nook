@@ -560,6 +560,10 @@ body.is-leaving::before {
 .history-page .page-title { margin-right: auto; }
 .history-list { display: flex; flex-direction: column; gap: 24px; }
 .history-group { display: flex; flex-direction: column; gap: 10px; }
+.history-card { flex-direction: row; align-items: flex-start; }
+.history-card .bookmark-main { flex: 1; min-width: 0; }
+.history-remove { flex: none; color: var(--text-muted); }
+.history-remove.is-error { color: #b42318; border-color: #b42318; }
 .history-day { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-muted); }
 .bookmark-actions .text-button { text-decoration: none; display: inline-flex; align-items: center; }
 .back-link { align-self: flex-start; text-decoration: none; display: inline-flex; align-items: center; }

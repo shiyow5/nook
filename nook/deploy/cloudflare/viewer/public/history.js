@@ -29,7 +29,7 @@ function startHistory() {
       return;
     }
     button.disabled = true;
-    button.textContent = "消しています…";
+    button.classList.remove("is-error");
     try {
       const response = await fetch(`/api/history/${encodeURIComponent(card.dataset.appName)}`, {
         method: "DELETE",
@@ -43,7 +43,9 @@ function startHistory() {
       refresh();
     } catch {
       button.disabled = false;
-      button.textContent = "消せませんでした。もう一度";
+      button.classList.add("is-error");
+      button.title = "消せませんでした。もう一度押してください";
+      button.setAttribute("aria-label", button.title);
     }
   });
 
