@@ -200,3 +200,26 @@ def test_arxiv_news_skips_entries_without_abstract(collector) -> None:
     entry["summary_detail"] = {"value": "arXiv:2611.00009v1 Announce Type: new \n"}
 
     assert collector._retrieve_article(entry, feed_name="arXiv cs.CL") is None
+
+
+def test_arxiv_news_uses_the_first_figure_as_thumbnail(
+    collector, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import nook.services.arxiv_news.service as arxiv_service
+
+    html = _PAPER_HTML.replace(
+        "<footer>", '<figure><img src="2611.34051v1/x1.png"></figure><footer>'
+    )
+    monkeypatch.setattr(
+        arxiv_service.requests, "get", lambda url, **kwargs: _FakeResponse(200, html)
+    )
+
+    article = collector._retrieve_article(_abstract_entry(), feed_name="arXiv cs.CL")
+    article.summary = "要約"
+
+    assert article.image == "https://arxiv.org/html/2611.34051v1/x1.png"
+    markdown = collector._stylize_article(article)
+    assert (
+        "[View on arXiv cs.CL](https://arxiv.org/abs/2611.34051)\n\n"
+        "![thumbnail](https://arxiv.org/html/2611.34051v1/x1.png)"
+    ) in markdown

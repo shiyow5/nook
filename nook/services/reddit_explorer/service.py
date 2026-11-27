@@ -15,6 +15,7 @@ from nook.services.reddit_explorer.summary_schema import (
 )
 from nook.services.runtime_secrets import require_runtime_secret
 from nook.services.storage import build_storage_backend
+from nook.services.thumbnail import safe_image_url, thumbnail_markdown
 
 
 class Config:
@@ -188,15 +189,19 @@ class RedditExplorer:
         return render_reddit_post_markdown(
             title=post.title,
             upvotes=post.upvotes,
+            # 画像の投稿は、その画像をサムネイルとして本文の上に出す(#42)
             media_markdown=(
-                f"![Image]({post.url})"
-                if post.type == "image"
-                else f'<video src="{post.url}" controls controls style="width: 100%; height: auto; max-height: 500px;"></video>'
+                f'<video src="{post.url}" controls controls style="width: 100%; height: auto; max-height: 500px;"></video>'
                 if post.type == "video" and post.url is not None
                 else ""
             ),
             permalink=post.permalink,
             summary=post.summary,
+            thumbnail=thumbnail_markdown(
+                safe_image_url(post.url)
+                if post.type == "image"
+                else safe_image_url(post.thumbnail)
+            ),
         )
 
     def _system_instruction_format(

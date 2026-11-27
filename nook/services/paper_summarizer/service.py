@@ -19,6 +19,7 @@ from nook.services.paper_summarizer.summary_schema import (
     render_paper_summary_markdown,
 )
 from nook.services.storage import build_storage_backend
+from nook.services.thumbnail import first_figure_image, thumbnail_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,8 @@ class PaperInfo:
     abstract: str
     url: str
     contents: str
+    # 論文の最初の図(#42)
+    image: str | None = None
     summary: PaperSummarySections = field(init=False)
 
 
@@ -153,12 +156,13 @@ class PaperSummarizer:
 
         search = arxiv.Search(id_list=[arxiv_id])
         info = next(self._arxiv.results(search))
-        contents = self._extract_body_text(arxiv_id)
+        html, html_url = self._fetch_paper_html(arxiv_id)
         return PaperInfo(
             title=info.title,
             abstract=info.summary,
             url=info.entry_id,
-            contents=contents,
+            contents=extract_body_text(html),
+            image=first_figure_image(html, html_url),
         )
 
     def _summarize_paper_info(self, paper_info: PaperInfo) -> PaperSummarySections:
@@ -180,6 +184,7 @@ class PaperSummarizer:
             title=paper_info.title,
             url=paper_info.url,
             summary=paper_info.summary,
+            thumbnail=thumbnail_markdown(paper_info.image),
         )
 
     def _select_new_arxiv_ids(self, papers: list[HuggingFacePaper]) -> list[str]:
@@ -218,10 +223,12 @@ class PaperSummarizer:
         )
         self._storage.write_state(state_key, "\n".join(new_arxiv_ids))
 
-    def _extract_body_text(self, arxiv_id: str) -> str:
-        response = requests.get(ARXIV_HTML_URL.format(arxiv_id=arxiv_id))
+    def _fetch_paper_html(self, arxiv_id: str) -> tuple[str, str]:
+        """HTML 版の本文と、図の相対パスを解決する基準の URL を返す。"""
+        html_url = ARXIV_HTML_URL.format(arxiv_id=arxiv_id)
+        response = requests.get(html_url)
         response.encoding = response.apparent_encoding
-        return extract_body_text(response.text)
+        return response.text, getattr(response, "url", None) or html_url
 
     @property
     def _system_instruction_format(self) -> str:

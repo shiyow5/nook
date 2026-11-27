@@ -526,3 +526,38 @@ describe("loading screen (#55)", () => {
     expect(html).not.toContain("R2 is down");
   });
 });
+
+describe("thumbnails (#42)", () => {
+  const day = "2026-11-18";
+  const markdown =
+    "# 画像つき\n\n[View on Zenn](https://zenn.dev/a)\n\n![thumbnail](https://img.example/a.png)\n\n本文です。\n\n---\n\n# 悪い画像\n\n![thumbnail](javascript:alert(1))\n\n本文";
+
+  it("shows the thumbnail in the list and above the article, not inside the body", async () => {
+    await env.NOOK_BUCKET.put(`jp_tech_news/${day}.md`, markdown);
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/read?date=${day}&tab=jp_tech_news`), testEnv(), deps)).text();
+
+    const img =
+      'src="https://img.example/a.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"';
+    expect(html).toContain(`<img class="thumb row-thumb" ${img}>`);
+    expect(html).toContain(`<figure class="article-hero"><img class="thumb hero-image" ${img}></figure>`);
+    const body = html.split('id="article-body"')[1].split("</div>")[0];
+    expect(body).not.toContain("img.example");
+    expect(html).not.toMatch(/(src|href)="javascript:/);
+    const state = JSON.parse(html.split('<script id="viewer-state" type="application/json">')[1].split("</script>")[0]);
+    expect(state.articles.jp_tech_news.map((article: { image: string | null }) => article.image)).toEqual([
+      "https://img.example/a.png",
+      null,
+    ]);
+  });
+
+  it("uses the thumbnail on the home pick card", async () => {
+    await env.NOOK_BUCKET.put(`jp_tech_news/${day}.md`, markdown);
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${day}`), testEnv(), deps)).text();
+
+    expect(html).toContain('<span class="pick-image"><img class="thumb pick-thumb" src="https://img.example/a.png"');
+  });
+});

@@ -18,11 +18,18 @@ from nook.services.collector_storage import CollectorStorage
 from nook.services.config import load_service_toml
 from nook.services.llm_client import create_client
 from nook.services.storage import build_storage_backend
+from nook.services.thumbnail import (
+    image_from_entry,
+    image_from_soup,
+    thumbnail_markdown,
+)
 
 _MARKDOWN_FORMAT = """
 # {title}
 
 [View on {feed_name}]({url})
+
+{thumbnail}
 
 {summary}
 """
@@ -60,6 +67,8 @@ class Article:
     text: str
     soup: BeautifulSoup
     category: str | None = field(default=None)
+    # 一覧と本文の上に出すサムネイル(#42)
+    image: str | None = field(default=None)
     summary: str = field(init=False)
 
 
@@ -350,6 +359,8 @@ class TechNews:
                 url=url,
                 text=text,
                 soup=soup,
+                image=image_from_soup(soup, getattr(response, "url", None) or url)
+                or image_from_entry(entry),
             )
         except requests.exceptions.RequestException as e:
             print(f"HTTP Error retrieving article {entry.get('link', 'N/A')}: {e}")
@@ -394,6 +405,7 @@ class TechNews:
             title=article.title,
             feed_name=article.feed_name,
             url=article.url,
+            thumbnail=thumbnail_markdown(article.image),
             summary=summary_text,
         )
 

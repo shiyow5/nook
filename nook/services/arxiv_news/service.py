@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 from nook.services.arxiv_html import ARXIV_HTML_URL, extract_body_text
 from nook.services.tech_news.service import Article, TechNews
+from nook.services.thumbnail import first_figure_image
 
 # arXiv RSS の announce_type。replace / replace-cross は既存論文の改訂なので扱わない
 _NEW_ANNOUNCE_TYPES = frozenset({"new", "cross"})
@@ -52,12 +53,17 @@ class ArxivNews(TechNews):
             print(f"Abstract not found in RSS for: {url}")
             return None
         title = entry.get("title", "Unknown Title")
+        html, html_url = _fetch_html(url)
         return Article(
             feed_name=feed_name,
             title=title,
             url=url,
-            text=_join_sections(title, abstract, _fetch_body_text(url)),
+            text=_join_sections(
+                title, abstract, extract_body_text(html) if html else ""
+            ),
             soup=BeautifulSoup("", "html.parser"),
+            # 論文の最初の図をサムネイルにする(#42)
+            image=first_figure_image(html, html_url) if html else None,
         )
 
     def _initially_processed_urls(self) -> set[str]:
@@ -86,22 +92,24 @@ def _abstract_text(entry: dict[str, Any]) -> str:
     return " ".join(_ABSTRACT_PREFIX.sub("", text, count=1).split())
 
 
-def _fetch_body_text(abs_url: str) -> str:
+def _fetch_html(abs_url: str) -> tuple[str, str]:
+    """HTML 版を取る。(HTML, 画像の相対パスを解決する基準の URL) を返し、無ければ HTML は空。"""
     arxiv_id = abs_url.rstrip("/").split("/")[-1]
+    html_url = ARXIV_HTML_URL.format(arxiv_id=arxiv_id)
     try:
         response = requests.get(
-            ARXIV_HTML_URL.format(arxiv_id=arxiv_id),
+            html_url,
             headers={"User-Agent": _USER_AGENT},
             timeout=_HTML_TIMEOUT_SECONDS,
         )
     except requests.exceptions.RequestException as error:
         print(f"Failed to fetch arXiv HTML for {arxiv_id}: {error}")
-        return ""
+        return "", html_url
     if response.status_code != 200:
         print(f"arXiv HTML not available for {arxiv_id}: {response.status_code}")
-        return ""
+        return "", html_url
     response.encoding = "utf-8"
-    return extract_body_text(response.text)
+    return response.text, getattr(response, "url", None) or html_url
 
 
 def _join_sections(title: str, abstract: str, body: str) -> str:

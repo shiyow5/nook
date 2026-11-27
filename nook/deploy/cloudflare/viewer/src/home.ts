@@ -4,7 +4,7 @@ import { displayLabel, TAB_GROUP_ORDER, type TabGroup, tabMeta, type ViewerPage 
 import { ICON_URL, icon } from "./icons";
 import { homePath, readPath, renderMenu } from "./menu";
 import { formatDayLabel, formatShortDayLabel, serializeStateForScript } from "./page";
-import { decodeEntities, escapeHtml, type RenderedArticle } from "./render";
+import { decodeEntities, escapeHtml, type RenderedArticle, thumbnailHtml } from "./render";
 
 /** タブのカードに並べる記事の数。 */
 const TAB_CARD_ITEMS = 3;
@@ -17,6 +17,7 @@ export type HomeArticle = {
   articleId: string;
   title: string;
   source: string | null;
+  image: string | null;
   href: string;
 };
 
@@ -65,6 +66,7 @@ function toHomeArticle(appName: string, article: RenderedArticle, day: string, t
     articleId: article.articleId,
     title: article.title,
     source: article.source,
+    image: article.image,
     href: readPath(appName, day, today, article.articleId),
   };
 }
@@ -238,7 +240,7 @@ function renderPicks(picks: HomePick[]): string {
   const cards = picks
     .map(
       (pick) => `        <a class="pick-card" href="${escapeHtml(pick.href)}">
-          <span class="pick-meta"><span class="pick-tab">${escapeHtml(pick.label)}</span><span class="pick-source">${escapeHtml(pick.source ?? "")}</span></span>
+${pick.image ? `          <span class="pick-image">${thumbnailHtml(pick.image, "pick-thumb")}</span>\n` : ""}          <span class="pick-meta"><span class="pick-tab">${escapeHtml(pick.label)}</span><span class="pick-source">${escapeHtml(pick.source ?? "")}</span></span>
           <span class="pick-title">${escapeHtml(pick.title)}</span>
           <span class="pick-lead">${escapeHtml(pick.lead)}</span>
           <span class="pick-foot"><span class="pick-read">読む →</span><span class="pick-badge">用語と理解度チェックつき</span></span>
@@ -264,7 +266,7 @@ function renderTabCard(tab: HomeTab): string {
 ${tab.items
   .map(
     (item) =>
-      `            <li><a href="${escapeHtml(item.href)}"><span class="row-source">${escapeHtml(item.source ?? "")}</span><span class="row-title">${escapeHtml(item.title)}</span></a></li>`,
+      `            <li><a href="${escapeHtml(item.href)}"><span class="row-text"><span class="row-source">${escapeHtml(item.source ?? "")}</span><span class="row-title">${escapeHtml(item.title)}</span></span>${thumbnailHtml(item.image, "row-thumb")}</a></li>`,
   )
   .join("\n")}
           </ol>

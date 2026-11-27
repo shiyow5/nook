@@ -11,6 +11,7 @@ from nook.services.collector_storage import CollectorStorage
 from nook.services.config import load_service_toml
 from nook.services.llm_client import create_client
 from nook.services.storage import build_storage_backend
+from nook.services.thumbnail import github_social_image, thumbnail_markdown
 
 _MARKDOWN_FORMAT = """
 # {title}
@@ -18,6 +19,8 @@ _MARKDOWN_FORMAT = """
 **Stars**: {score}
 
 [View on GitHub]({url})
+
+{thumbnail}
 
 **Description**: {description}
 
@@ -289,6 +292,8 @@ class GithubTrending:
             title=repository.name,
             score=repository.stars,
             url=repository.link,
+            # GitHub が作るリポジトリの紹介画像(#42)
+            thumbnail=thumbnail_markdown(github_social_image(repository.link)),
             description=description_text,
             summary=summary_text,
         )

@@ -88,6 +88,18 @@ function startMenu() {
   // 戻るボタンでキャッシュから戻ったときは帯を消す
   window.addEventListener("pageshow", () => document.body.classList.remove("is-leaving"));
 
+  // 元サイトの画像(サムネイル、#42)が読み込めなかったら、枠ごと隠す
+  document.addEventListener(
+    "error",
+    (event) => {
+      const image = event.target;
+      if (image instanceof HTMLImageElement && image.classList.contains("thumb")) {
+        (image.closest(".article-hero, .pick-image") || image).hidden = true;
+      }
+    },
+    true,
+  );
+
   window.nookMenu = { open, close, isOpen: () => !drawer.hidden };
 }
 

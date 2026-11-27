@@ -205,6 +205,7 @@ export function articleToState(article: RenderedArticle) {
     headings: article.headings,
     source: article.source,
     link: article.link,
+    image: article.image,
   };
 }
 
