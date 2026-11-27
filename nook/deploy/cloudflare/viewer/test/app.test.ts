@@ -63,7 +63,7 @@ describe("GET /", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(html).toContain('data-app-name="tech_news"');
-    expect(html).toContain(">国内</button>");
+    expect(html).toContain('<span class="tab-name">国内</span>');
     expect(html).toContain('class="md-heading md-h1"');
     expect(html).toContain("First Article");
     expect(html).not.toContain('id="weather"');
@@ -73,6 +73,63 @@ describe("GET /", () => {
     expect(state.markdown_exists.tech_news).toBe(true);
     expect(state.markdown_exists.jp_tech_news).toBe(false);
     expect(state.articles.tech_news).toHaveLength(2);
+  });
+
+  it("lists one row per article and shows the first article with its source link", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+
+    expect(html.match(/class="article-row"/g)).toHaveLength(2);
+    expect(html).toContain('<span class="row-title">First Article</span>');
+    expect(html).toContain('<span class="row-source">example.com</span>');
+    expect(html).toContain('href="https://example.com/first" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain('<span id="article-position">1 / 2</span>');
+    expect(html).toContain('id="study-fab"');
+    expect(html).not.toContain('id="toc-list"');
+  });
+
+  it("uses a date picker that cannot go past today", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+
+    expect(html).toContain(`type="date" value="${DAY}" max="${DAY}"`);
+    expect(html).toMatch(/id="next-day"[^>]* disabled/);
+    expect(html).toMatch(/id="today-button"[^>]* hidden/);
+  });
+
+  it("groups tabs into 国内 / 海外 / 論文 in the menu", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${DAY}`), testEnv(), deps)).text();
+
+    const groups = [...html.matchAll(/<span class="tab-group-name">([^<]+)<\/span>/g)].map((match) => match[1]);
+    expect(groups).toEqual(["国内", "海外", "論文"]);
+    expect(html).toMatch(/data-app-name="tech_news" aria-current="page"/);
+  });
+
+  it("opens the tab given in the URL", async () => {
+    // ほかのテストが「jp_tech_news は未収集」を前提にしているので、別の日に置く
+    const otherDay = "2026-11-24";
+    await env.NOOK_BUCKET.put(`jp_tech_news/${otherDay}.md`, "# 国内の記事\n\n[View on Zenn](https://zenn.dev/x)\n\n本文");
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${otherDay}&tab=jp_tech_news`), testEnv(), deps)).text();
+
+    expect(html).toMatch(/data-app-name="jp_tech_news" aria-current="page"/);
+    expect(html).toContain('<span class="row-title">国内の記事</span>');
+    const state = JSON.parse(html.split('<script id="viewer-state" type="application/json">')[1].split("</script>")[0]);
+    expect(state.current_app).toBe("jp_tech_news");
+    expect(state.tab_meta.jp_tech_news.group).toBe("国内");
+  });
+
+  it("falls back to the first tab when the URL names an unknown tab", async () => {
+    const { deps } = buildDeps();
+
+    const html = await (await handleRequest(request(`/?date=${DAY}&tab=nope`), testEnv(), deps)).text();
+
+    expect(html).toMatch(/data-app-name="tech_news" aria-current="page"/);
   });
 
   it("uses today's date in Japan when no date is given", async () => {
@@ -288,12 +345,15 @@ describe("request hardening", () => {
 });
 
 describe("static assets", () => {
-  it("serves viewer.js under /static", async () => {
+  it("serves app.js and app.css under /static", async () => {
     const { deps } = buildDeps();
 
-    const response = await handleRequest(request("/static/viewer.js"), testEnv(), deps);
+    const script = await handleRequest(request("/static/app.js"), testEnv(), deps);
+    const style = await handleRequest(request("/static/app.css"), testEnv(), deps);
 
-    expect(response.status).toBe(200);
-    expect(await response.text()).toContain("bootstrapViewer");
+    expect(script.status).toBe(200);
+    expect(await script.text()).toContain("startViewer");
+    expect(style.status).toBe(200);
+    expect(await style.text()).toContain(".study-fab");
   });
 });

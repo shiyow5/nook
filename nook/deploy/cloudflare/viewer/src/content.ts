@@ -37,6 +37,33 @@ const TAB_LABELS: Record<string, string> = {
   google_alerts: "Alerts",
 };
 
+export type TabGroup = "国内" | "海外" | "論文";
+
+/** ハンバーガーメニューでの分類と、タブ名の下に出す説明。 */
+const TAB_META: Record<string, { group: TabGroup; description: string }> = {
+  jp_tech_news: { group: "国内", description: "Zenn・Qiita・note・はてブ・DevelopersIO" },
+  tech_news: { group: "海外", description: "海外メディア・企業ブログ・国内ビジネス" },
+  tech_feed: { group: "海外", description: "企業・研究機関のブログ" },
+  hacker_news: { group: "海外", description: "Hacker News の上位" },
+  github_trending: { group: "海外", description: "GitHub Trending" },
+  reddit_explorer: { group: "海外", description: "r/LocalLLaMA" },
+  product_hunt: { group: "海外", description: "Product Hunt" },
+  google_alerts: { group: "海外", description: "Google アラート" },
+  paper_summarizer: { group: "論文", description: "Hugging Face Daily Papers" },
+  arxiv_news: { group: "論文", description: "arXiv cs.CL / cs.LG / cs.AI" },
+};
+
+export const TAB_GROUP_ORDER: readonly TabGroup[] = ["国内", "海外", "論文"];
+
+export type TabInfo = {
+  appName: string;
+  label: string;
+  group: TabGroup;
+  description: string;
+  articleCount: number;
+  isActive: boolean;
+};
+
 export type MarkdownRecord = { content: string; updatedAt: string | null };
 
 export type ViewerPage = {
@@ -50,7 +77,7 @@ export type ViewerPage = {
 
 export type InitialRender = {
   currentApp: string | null;
-  tabs: { appName: string; label: string; isActive: boolean }[];
+  tabs: TabInfo[];
   articles: RenderedArticle[];
   missingMessage: string | null;
   headings: Heading[];
@@ -130,11 +157,25 @@ export async function loadViewerPage(bucket: R2Bucket, appNames: string[], day: 
   };
 }
 
-export function buildInitialRender(page: ViewerPage): InitialRender {
-  const currentApp = page.appNames[0] ?? null;
+export function tabMeta(appName: string): { group: TabGroup; description: string } {
+  return TAB_META[appName] ?? { group: "海外", description: "" };
+}
+
+/** 最初に開くタブ。URL の tab が表示対象ならそれを、なければ先頭のタブを使う。 */
+export function resolveCurrentApp(appNames: string[], requested: string | null): string | null {
+  if (requested !== null && appNames.includes(requested)) {
+    return requested;
+  }
+  return appNames[0] ?? null;
+}
+
+export function buildInitialRender(page: ViewerPage, requestedApp: string | null = null): InitialRender {
+  const currentApp = resolveCurrentApp(page.appNames, requestedApp);
   const tabs = page.appNames.map((appName) => ({
     appName,
     label: displayLabel(appName),
+    ...tabMeta(appName),
+    articleCount: page.articles[appName]?.length ?? 0,
     isActive: appName === currentApp,
   }));
   const articles = currentApp ? (page.articles[currentApp] ?? []) : [];
@@ -143,7 +184,7 @@ export function buildInitialRender(page: ViewerPage): InitialRender {
       currentApp,
       tabs,
       articles: [],
-      missingMessage: currentApp === null ? null : `Content for ${page.date} not found.`,
+      missingMessage: currentApp === null ? null : `${page.date} の ${displayLabel(currentApp)} はまだありません。`,
       headings: [],
     };
   }
@@ -157,13 +198,26 @@ export function buildInitialRender(page: ViewerPage): InitialRender {
 }
 
 export function articleToState(article: RenderedArticle) {
-  return { article_id: article.articleId, title: article.title, html: article.html, headings: article.headings };
+  return {
+    article_id: article.articleId,
+    title: article.title,
+    html: article.html,
+    headings: article.headings,
+    source: article.source,
+    link: article.link,
+  };
 }
 
-export function pageToState(page: ViewerPage) {
+export function pageToState(page: ViewerPage, extra: { currentApp?: string | null; today?: string } = {}) {
   return {
     date: page.date,
+    today: extra.today ?? page.date,
+    current_app: extra.currentApp ?? page.appNames[0] ?? null,
     app_names: page.appNames,
+    tab_meta: Object.fromEntries(
+      page.appNames.map((appName) => [appName, { label: displayLabel(appName), ...tabMeta(appName) }]),
+    ),
+    tab_group_order: TAB_GROUP_ORDER,
     contents: page.contents,
     articles: Object.fromEntries(
       Object.entries(page.articles).map(([appName, articles]) => [appName, articles.map(articleToState)]),

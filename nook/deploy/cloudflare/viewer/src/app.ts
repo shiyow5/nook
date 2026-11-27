@@ -53,7 +53,12 @@ async function route(request: Request, env: NookEnv, deps: AppDeps): Promise<Res
     return env.ASSETS.fetch(new Request(new URL(path.slice("/static".length), url), request));
   }
   if (method === "GET" && path === "/") {
-    return renderIndex(env, resolveDay(url.searchParams.get("date"), deps.now()));
+    return renderIndex(
+      env,
+      resolveDay(url.searchParams.get("date"), deps.now()),
+      url.searchParams.get("tab"),
+      todayInJapan(deps.now()),
+    );
   }
 
   const markdownMatch = /^\/api\/markdown\/([^/]+)$/.exec(path);
@@ -94,9 +99,9 @@ function ensureSameOrigin(request: Request, url: URL): void {
   }
 }
 
-async function renderIndex(env: NookEnv, day: string): Promise<Response> {
+async function renderIndex(env: NookEnv, day: string, requestedApp: string | null, today: string): Promise<Response> {
   const page = await loadViewerPage(env.NOOK_BUCKET, viewerServiceNames(env), day);
-  const html = renderIndexHtml(page, buildInitialRender(page), assetVersion(env));
+  const html = renderIndexHtml(page, buildInitialRender(page, requestedApp), assetVersion(env), today);
   return new Response(html, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
@@ -182,9 +187,13 @@ async function parseChatBody(request: Request): Promise<ChatBody> {
 }
 
 /** 日付が無ければ日本時間の今日を使う(collector も TZ=Asia/Tokyo で動かしている)。 */
+export function todayInJapan(now: Date): string {
+  return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 export function resolveDay(value: string | null, now: Date): string {
   if (value === null) {
-    return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
+    return todayInJapan(now);
   }
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   const parsed = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))) : null;

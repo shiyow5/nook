@@ -8,7 +8,7 @@ import {
   splitMarkdownSections,
 } from "../src/articles";
 import { extractMainText, readLimitedText } from "../src/chat";
-import { renderArticle, slugify } from "../src/render";
+import { extractSourceLink, renderArticle, slugify } from "../src/render";
 
 const TWO_ARTICLES =
   "# First Article\n\nAlpha summary.\n\n---\n\n# Second Article\n\nBeta summary.";
@@ -202,5 +202,26 @@ describe("extractMainText", () => {
     expect(extractMainText("<body><nav>menu</nav><article><p>Hello</p> <p>world</p></article></body>")).toBe(
       "Hello world",
     );
+  });
+});
+
+describe("extractSourceLink", () => {
+  it("reads the feed name from a 'View on' link", () => {
+    expect(extractSourceLink("# T\n\n[View on Zenn Trending](https://zenn.dev/a/b)\n\nbody")).toEqual({
+      source: "Zenn Trending",
+      link: "https://zenn.dev/a/b",
+    });
+  });
+
+  it("falls back to the host name for other View links", () => {
+    expect(extractSourceLink("# T\n\n**Score**: 1\n\n[View Link](https://www.example.com/post)")).toEqual({
+      source: "example.com",
+      link: "https://www.example.com/post",
+    });
+    expect(extractSourceLink("# T\n\n[View Paper](http://arxiv.org/abs/2611.1v1)").source).toBe("arxiv.org");
+  });
+
+  it("returns nulls when the article has no View link", () => {
+    expect(extractSourceLink("# T\n\n[other](https://example.com)")).toEqual({ source: null, link: null });
   });
 });
