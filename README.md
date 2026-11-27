@@ -68,8 +68,10 @@ cd nook/deploy/cloudflare/viewer
 npm ci
 npm test                # Workers のランタイム上で vitest を実行
 npm run typecheck
-npm run deploy          # viewer を Cloudflare にデプロイ
+npm run deploy          # viewer を手元から Cloudflare にデプロイ(普段は不要)
 ```
+
+viewer は main にマージされると、GitHub Actions の `deploy-viewer` が検査を通してから自動でデプロイします。
 
 収集を手動で動かすときは `gh workflow run collect.yml -f collectors=jp_tech_news` のように collector 名を指定します。
 

@@ -102,6 +102,20 @@ gh run watch
 
 終わったら viewer の URL を開き、「国内」タブに記事が出ることを確かめます。
 
+## 6. 自動デプロイを有効にする
+
+`.github/workflows/deploy-viewer.yml` は、viewer に関わる変更が main に入ったときに CI(ruff、pytest、tsc、vitest)を通してから `wrangler deploy` を実行します。Actions の画面か `gh workflow run deploy-viewer.yml` で手動でも動かせます。使う前に次の 2 つを登録します。
+
+1. Cloudflare のダッシュボードで「プロファイル > API トークン > カスタムトークンを作成する」を選び、権限を「アカウント / Workers スクリプト / 編集」と「アカウント / アカウント設定 / 読み取り」にし、アカウントリソースを自分のアカウントに絞ってトークンを作ります。
+2. GitHub に登録します。
+
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN       # 1 で作ったトークンを貼り付ける
+   gh variable set CLOUDFLARE_ACCOUNT_ID    # wrangler whoami で出るアカウント ID
+   ```
+
+`GOOGLE_API_KEY` と `GITHUB_TOKEN` は Cloudflare 側の secret なので、自動デプロイでは上書きしません。トークンが未登録のままだと、デプロイのジョブは「CLOUDFLARE_API_TOKEN が必要」というエラーで止まります。
+
 ## ローカルでの確認
 
 ```bash
